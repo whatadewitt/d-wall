@@ -1,0 +1,18 @@
+{
+  "name": "wall-client",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^7.3.7"
+  },
+  "dependencies": {
+    "preact": "^10.29.8"
+  }
+}
