@@ -75,7 +75,7 @@ These are headless desktop Chromium numbers, not the tablet.
 
 ## 4. Deploy
 
-On the media server, in `~/d-wall/wall`:
+On the media server, in `~/code/d-wall/wall` (where the clone lives):
 
 ```sh
 git stash && git pull && git stash pop    # keeps your config.yaml edits; verified to merge cleanly
@@ -104,3 +104,14 @@ Then:
   ```
 - **Switch 300 ms or less.** There's only one rail screen now, so set `screens: [calendar, example-clock]` temporarily. Tap Clock, then Calendar, and read `lastSwitch` from the next heartbeat. Set it back afterwards.
 - **Open item from the spec:** confirm each child's calendar could be shared with the service account. Family Link accounts may block it.
+
+## 6. Environment facts (for the next session)
+
+These came up in conversation and aren't in the spec. This report outranks the spec on them.
+
+- **The tablet is a Google Pixel Tablet, not the Galaxy Tab A11+ named in spec section 2.** It is 10.95″, 2560 × 1600, the same 16:10 shape. Android normally runs it at 2× scaling, which would make the CSS viewport 1280 × 800, the size the mockups and spacing were designed for. **This hasn't been measured yet.** Read `viewport` from the first heartbeat (spike S1 in the milestone 0 report) before changing any spacing. If it isn't 1280 × 800, adjust the tokens in `client/src/theme.css` for the real size.
+- **The server's clone is at `~/code/d-wall`**, running from `~/code/d-wall/wall`.
+- **The server's `config.yaml` and `.env` hold real values and are local edits**, so pull with `git stash && git pull && git stash pop`. See K17 for the proposal to make `config.yaml` git-ignored.
+- **The milestone 0 gate is still open.** The spikes and the 24 h soak are waiting on the tablet being set up in Fully Kiosk.
+- **Before milestone 2:** RTSPS has to be turned on for all four cameras in UniFi Protect (spec section 13, "Still to do").
+
