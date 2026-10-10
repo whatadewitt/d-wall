@@ -126,3 +126,20 @@ If any camera stays under 15 fps, set `live: medium`, restart, and repeat.
 - **Leaving full view returns memory to baseline:** compare the heartbeat `heapMB` on the grid before and after a few live views, and Fully's RAM figures in soak mode.
 - **Heap 120 MB or less with video.**
 - **Tiles show images within 500 ms of a switch with warm stills** (by eye; this is the warm path measured at 98–252 ms here).
+
+## 8. Spike: one tiled stream instead of four stills (asked Oct 10)
+
+**Question:** would a single ffmpeg 2 × 2 tiled video for the grid be better than four refreshing stills?
+
+**Setup:** four fake 640 × 360, 15 fps H.264 cameras over RTSP. go2rtc 1.9.9 ran an `exec:ffmpeg` stream using `xstack` to tile them into 1280 × 720 at 10 fps, re-encoded with libx264 `ultrafast`. Measured on this environment's 4-vCPU 2.1 GHz Xeon. Your media server's numbers will differ, and Intel Quick Sync, if present, would cut the encode cost.
+
+| Measure | Tiled stream | Stills today |
+| --- | --- | --- |
+| Time to first image, from cold | about 10 s with ffmpeg defaults; about 5 s with fast input probing (`-fflags nobuffer -probesize 65536 -analyzeduration 500000`). WebRTC setup on the tablet comes on top. | 98–252 ms (warm stills) |
+| Server CPU while the grid is open | about 20% of one core (the tiling ffmpeg alone) | go2rtc stills: about 16% of one core. Protect stills: close to 0 (the server only passes the image along). |
+| One camera missing when the grid opens | **No video at all.** ffmpeg won't start if any input is missing, so all four tiles stay blank. | That one tile shows "Stale"; the other three keep refreshing. |
+| One camera dies while playing | Inconclusive. The fake camera server restarted the dead source by itself. With real cameras, expect either a frozen tile or ffmpeg exiting, which blanks all four. | Same as above: one stale tile. |
+| Other | Needs go2rtc's internal RTSP server turned back on, since `exec` sources return video over it (Docker network only). Labels and stale marks become harder because the picture is one image. | |
+
+**Recommendation: don't adopt it.** It trades a 250 ms grid for a roughly 5 s one, costs at least as much CPU as the most expensive still source, and turns one camera's outage into four blank tiles. Its only gain is real motion in the grid. If 2 s stills feel too choppy on the wall, use 1 s refresh with Protect stills (a one-line change) first.
+
