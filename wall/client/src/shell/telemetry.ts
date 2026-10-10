@@ -8,7 +8,7 @@ const MB = 1024 * 1024;
 const round = (n: number) => Math.round(n * 10) / 10;
 
 // The 60 second heartbeat to POST /api/telemetry (spec section 11).
-export function startHeartbeat(read: () => { screen: string | null; state: string; soakCycles: number | null }): void {
+export function startHeartbeat(read: () => { screen: string | null; state: string; soakCycles: number | null; lastSwitch: { screen: string; ms: number } | null }): void {
   const send = () => {
     // performance.memory is non-standard; Chromium WebViews provide it.
     const mem = (performance as Performance & { memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number } }).memory;

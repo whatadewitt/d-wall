@@ -10,7 +10,7 @@ export interface Config {
   clock: '12h' | '24h';
   screens: string[];
   idle: { toIdleSec: number; toOffMin: number; quietHours: { from: string; to: string } };
-  calendars: { id: string; googleId: string; color: string }[];
+  calendars: { id: string; name?: string; googleId: string; color: string }[];
   cameras: { id: string; name: string; rtsps: string; doorbell?: boolean }[];
   kiosk: { host: string; port: number };
   photos: { source: string; path: string; intervalSec: number };
@@ -25,7 +25,7 @@ export interface ClientConfig {
   clock: '12h' | '24h';
   screens: string[];
   idle: Config['idle'];
-  calendars: { id: string; color: string }[];
+  calendars: { id: string; name: string; color: string }[];
   soak: boolean;
 }
 
@@ -57,7 +57,7 @@ export function clientConfig(c: Config): ClientConfig {
     clock: c.clock,
     screens: c.screens,
     idle: c.idle,
-    calendars: c.calendars.map(({ id, color }) => ({ id, color })),
+    calendars: c.calendars.map(({ id, name, color }) => ({ id, name: name ?? id, color })),
     soak: c.debug.soak,
   };
 }

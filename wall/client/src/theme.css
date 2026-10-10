@@ -54,6 +54,8 @@
   --rail-line: #212831;
   --accent-soft: rgba(255, 209, 102, 0.14);
   --radius-rail-item: 1.125rem;
+  --radius-chip: 8px;           /* all-day chips */
+  --scrim: rgba(8, 10, 13, 0.6); /* behind the event sheet */
 
   /* Type (section 9). The root size is viewport height / 50, so 1rem = 16px at 800 px tall. */
   --fs-title: 2.25rem;      /* 36px display, page title */
@@ -64,6 +66,11 @@
   --fs-label: 0.8125rem;    /* 13px, smallest labels */
   --fs-idle-clock: 4.25rem; /* 68px display, idle clock (mockup) */
   --fs-idle-date: 1.25rem;  /* 20px, idle date (mockup) */
+  --fs-header-date: 1rem;   /* 16px, date under the header clock */
+  --fs-allday: 1rem;        /* 16px bold, all-day chips (mockup) */
+  --fs-legend: 0.9375rem;   /* 15px, calendar legend */
+  --fs-button: 1.0625rem;   /* 17px bold, Today and Week buttons */
+  --fs-tiny: 0.75rem;       /* 12px, the "all day" gutter label (mockup) */
 
   /* Layout constants (section 9). */
   --rail-w: 5.5rem;         /* 88px */
@@ -71,6 +78,19 @@
   --hour: 2.8125rem;        /* 45px per hour */
   --pad: 1.5rem;            /* 24px screen padding */
   --gap: 0.75rem;           /* 12px */
+  --head-h: 4rem;           /* 64px header and day-header rows */
+  --button: 3rem;           /* 48px round header buttons */
+  --today-dot: 2.375rem;    /* 38px circle behind today's number */
+  --lane: 1.875rem;         /* 30px per all-day lane */
+  --chip: 1.625rem;         /* 26px all-day chip */
+  --event-min: 1.75rem;     /* 28px shortest event block */
+  --shape: 0.6875rem;       /* 11px calendar shape */
+  --now-dot: 0.75rem;       /* 12px */
+
+  /* Spacing steps used by the mockups, named by their px value at 800 px tall. */
+  --sp-2: 0.125rem;  --sp-4: 0.25rem;   --sp-5: 0.3125rem; --sp-6: 0.375rem;
+  --sp-7: 0.4375rem; --sp-8: 0.5rem;    --sp-14: 0.875rem; --sp-16: 1rem;
+  --sp-18: 1.125rem; --sp-20: 1.25rem;  --sp-28: 1.75rem;
 }
 
 /* Page hardening, applied once (section 9). */

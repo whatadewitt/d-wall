@@ -51,11 +51,20 @@ export async function boot(app: HTMLElement): Promise<void> {
 
   const drawRail = () => render(<Rail screens={railScreens} active={main.currentId} onSelect={go} />, rail);
 
+  // Time from a switch to the first frame after mount, sent with the heartbeat (section 11 switch targets).
+  let lastSwitch: { screen: string; ms: number } | null = null;
+
   function go(id: string): void {
     const s = byId.get(id);
     if (!s) return console.warn(`go(): no screen "${id}"`);
+    const started = performance.now();
     overlay.unmount();
-    void main.show(s).then(drawRail);
+    void main.show(s).then(() => {
+      drawRail();
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (main.currentId === id) lastSwitch = { screen: id, ms: Math.round(performance.now() - started) };
+      }));
+    });
     drawRail();
   }
 
@@ -126,7 +135,7 @@ export async function boot(app: HTMLElement): Promise<void> {
   });
 
   const soakCycles = config.soak ? startSoak(main, registry) : null;
-  startHeartbeat(() => ({ screen: main.currentId, state: idle.state, soakCycles: soakCycles?.() ?? null }));
+  startHeartbeat(() => ({ screen: main.currentId, state: idle.state, soakCycles: soakCycles?.() ?? null, lastSwitch }));
 
   post('/api/state', { state: 'active', via: 'boot' });
   go(home.id);
