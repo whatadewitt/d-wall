@@ -143,3 +143,17 @@ If any camera stays under 15 fps, set `live: medium`, restart, and repeat.
 
 **Recommendation: don't adopt it.** It trades a 250 ms grid for a roughly 5 s one, costs at least as much CPU as the most expensive still source, and turns one camera's outage into four blank tiles. Its only gain is real motion in the grid. If 2 s stills feel too choppy on the wall, use 1 s refresh with Protect stills (a one-line change) first.
 
+
+## 9. Carried into milestone 3
+
+**Doorbell sound on the tablet (approved in principle, Oct 10).** This changes spec section 7, which currently says the tablet plays no sound. The milestone 3 plan will propose the exact wording for you to approve before it's built.
+
+- **Approach:** a short ding bundled with the client (no Protect API needed), played when `doorbell.ring` arrives, alongside the popup. Playback goes through Fully Kiosk's JavaScript interface, because a web page's own audio is unreliable while the screen is off. It can be switched off on its own, separately from the ring-to-popup work.
+- **To decide in the plan:**
+  - quiet hours (silent or not);
+  - volume;
+  - whether a popup shown because of a reconnect (the page catching up on `activeUntil`) also plays it, or only a fresh ring does.
+- **Other:** the existing physical chime stays as it is.
+- **Unknown:** whether Protect can provide the chime's own ringtone file. Not needed for this approach.
+
+**Protect account role.** The deploy confirmed the local Protect account reaches the camera list and stream details. If it needed more than View Only, note it here (spec section 2 assumes view-only).
