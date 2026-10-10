@@ -71,6 +71,7 @@ These are headless desktop Chromium numbers, not the tablet.
 | K20 | Calendar times are shown in the `config.yaml` time zone, not the device's. | Single tablet, single home. | |
 | K21 | `screens: [calendar]`, so the template clock is no longer in the rail. It's still registered, and the soak still mounts it. | Section 10 sketch. | |
 | K22 | `GOOGLE_SA_KEY_FILE` is required by compose now. | The calendar doesn't work without it. | |
+| K23 | **Spec correction:** the Canadian holidays calendar id in the section 10 config sketch (`en.canadian#holiday@group.calendar.google.com`) returns 404 from the Calendar API. The working id is `en.canadian#holiday@group.v.calendar.google.com`, confirmed on the real server Oct 10. `config.yaml` is updated. The spec itself is unchanged; this report outranks it. | Found on first deploy. | |
 
 ## 4. Deploy
 
@@ -91,6 +92,7 @@ Then:
    - `calendar poll failed` with `http: 404` means the calendar isn't shared with the service account, or the id is wrong.
    - `http: 403` means the Calendar API isn't enabled.
    - `reason: ENOTFOUND` means the server has no DNS or internet.
+   - Confirmed on the real server, Oct 10: all 6 calendars polled with `failed: 0` (170 events), after the holidays id fix in K23.
 6. Reload the page on the laptop.
 
 ## 5. Gate checks on the tablet
