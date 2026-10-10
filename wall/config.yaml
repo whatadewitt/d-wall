@@ -4,8 +4,8 @@ server: { port: 9600 }
 timezone: America/Halifax
 weekStart: 0              # 0 = Sunday
 clock: 12h
-# Rail order. The first is home. cameras joins in milestone 2.
-screens: [calendar]
+# Rail order. The first is home.
+screens: [calendar, cameras]
 idle: { toIdleSec: 180, toOffMin: 20, quietHours: { from: "22:00", to: "06:30" } }
 # Calendar order sets the shape beside each title: circle, rounded square, diamond, triangle.
 # Optional per calendar: name: "Kid 1" (the legend label; defaults to the id).
@@ -21,6 +21,8 @@ cameras:
   - { id: camera-4, name: "<name>", rtsps: "<rtsps url>" }
 kiosk: { host: "<tablet ip>", port: 2323 }
 photos: { source: folder, path: /data/photos, intervalSec: 30 }
+# Set by the milestone 2 spikes (spec section 6). stills: protect or go2rtc. live: main or medium.
+cameraOptions: { stills: protect, live: main }
 # Soak harness (section 11). When on, the client mounts and unmounts every registered screen
 # every 60 s and the idle clock is paused; the server logs Fully Kiosk RAM every 5 minutes.
 debug: { soak: false }

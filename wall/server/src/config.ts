@@ -12,6 +12,7 @@ export interface Config {
   idle: { toIdleSec: number; toOffMin: number; quietHours: { from: string; to: string } };
   calendars: { id: string; name?: string; googleId: string; color: string }[];
   cameras: { id: string; name: string; rtsps: string; doorbell?: boolean }[];
+  cameraOptions?: { stills?: 'protect' | 'go2rtc'; live?: 'main' | 'medium' }; // milestone 2 spikes
   kiosk: { host: string; port: number };
   photos: { source: string; path: string; intervalSec: number };
   debug: { soak: boolean };
@@ -41,6 +42,10 @@ export function loadConfig(path = configPath): Config {
   if (!(Number(raw.idle?.toIdleSec) > 0) || !(Number(raw.idle?.toOffMin) > 0)) fail('idle.toIdleSec and idle.toOffMin must be positive');
   if (raw.clock !== '12h' && raw.clock !== '24h') fail('clock must be 12h or 24h');
   if (typeof raw.timezone !== 'string') fail('timezone is required');
+  const stills = raw.cameraOptions?.stills;
+  const live = raw.cameraOptions?.live;
+  if (stills !== undefined && stills !== 'protect' && stills !== 'go2rtc') fail('cameraOptions.stills must be protect or go2rtc');
+  if (live !== undefined && live !== 'main' && live !== 'medium') fail('cameraOptions.live must be main or medium');
   return {
     ...(raw as Config),
     calendars: raw.calendars ?? [],

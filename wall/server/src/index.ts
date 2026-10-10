@@ -83,6 +83,23 @@ app.post('/api/telemetry', {
           properties: { w: { type: 'number' }, h: { type: 'number' }, dpr: { type: 'number' }, screenW: { type: 'number' }, screenH: { type: 'number' } },
         },
         soakCycles: { type: ['integer', 'null'] },
+        // Live-view numbers from the cameras screen (milestone 2 stream spike).
+        video: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            camera: { type: 'string', maxLength: 40 },
+            stream: { type: 'string', maxLength: 10 },
+            connectMs: { type: ['number', 'null'] },
+            fps: { type: ['number', 'null'] },
+            avgFps: { type: ['number', 'null'] },
+            dropped: { type: ['number', 'null'] },
+            width: { type: ['number', 'null'] },
+            height: { type: ['number', 'null'] },
+            seconds: { type: 'number' },
+            fallback: { type: 'boolean' },
+          },
+        },
         lastSwitch: {
           type: ['object', 'null'],
           additionalProperties: false,
@@ -101,7 +118,9 @@ app.post('/api/telemetry', {
     },
   },
 }, async (req) => {
-  log.info({ telemetry: req.body }, 'heartbeat');
+  const body = req.body as { video?: unknown };
+  if (body.video) log.info({ video: body.video }, 'live view');
+  else log.info({ telemetry: req.body }, 'heartbeat');
   return { ok: true };
 });
 

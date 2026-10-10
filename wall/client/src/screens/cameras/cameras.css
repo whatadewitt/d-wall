@@ -1,0 +1,116 @@
+/* Cameras screen, from the "Cameras, grid" mockup. Values come from theme.css. */
+.cams {
+  height: 100%;
+  box-sizing: border-box;
+  padding: var(--sp-20) var(--pad) var(--sp-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-14);
+}
+.cams-head { height: var(--head-h); flex: none; display: flex; align-items: center; justify-content: space-between; }
+.cams-head__title { display: flex; align-items: baseline; gap: var(--sp-16); }
+.cams-title { margin: 0; font-family: var(--font-display); font-size: var(--fs-title); font-weight: 700; letter-spacing: -0.01em; }
+.cams-subtitle { font-size: var(--fs-subtitle); font-weight: 500; color: var(--text-2); }
+.cams-clock { text-align: right; }
+.cams-clock__time { font-family: var(--font-display); font-size: var(--fs-clock); font-weight: 700; line-height: 1; letter-spacing: -0.01em; white-space: nowrap; }
+.cams-clock__date { margin-top: var(--sp-4); font-size: var(--fs-header-date); font-weight: 500; color: var(--text-2); white-space: nowrap; }
+
+.cams-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-14);
+}
+.cam-tile {
+  position: relative;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background-color: var(--tile-bg);
+  background-image: repeating-linear-gradient(135deg, var(--tile-stripe) 0, var(--tile-stripe) 14px, var(--tile-bg) 14px, var(--tile-bg) 28px);
+  text-align: left;
+}
+/* Contain-fit on a dark background: the doorbell and the other cameras differ in aspect (section 6). */
+.cam-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: var(--video-bg);
+  opacity: 0;
+}
+.cam-img[data-front] { opacity: 1; }
+.cam-age {
+  position: absolute;
+  top: var(--sp-14);
+  right: var(--sp-14);
+  padding: var(--sp-5) var(--sp-12);
+  border-radius: var(--radius-age);
+  background: var(--label-bg);
+  color: var(--text-2);
+  font-size: var(--fs-time);
+  font-weight: 600;
+}
+.cam-age[data-stale] { background: var(--accent); color: var(--on-accent); font-weight: 700; }
+.cam-name {
+  position: absolute;
+  left: var(--sp-14);
+  bottom: var(--sp-14);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-10);
+  padding: var(--sp-9) var(--sp-16);
+  border-radius: var(--radius-label);
+  background: var(--label-bg);
+  color: var(--text);
+  font-size: var(--fs-tile-name);
+  font-weight: 700;
+}
+.cam-bell { width: 1.25rem; height: 1.25rem; color: var(--accent); }
+
+/* Full view: one video, the camera name, close, previous and next. Tap the video to show or hide controls. */
+.cam-full {
+  position: absolute;
+  inset: 0;
+  background: var(--video-bg);
+  touch-action: none; /* section 9: no browser gestures on live video */
+  overflow: hidden;
+}
+.cam-video, .cam-fallback { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.cam-status {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: var(--sp-9) var(--sp-16);
+  border-radius: var(--radius-label);
+  background: var(--label-bg);
+  font-size: var(--fs-tile-name);
+  font-weight: 700;
+}
+.cam-full__controls { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 150ms; }
+.cam-full[data-controls] .cam-full__controls { opacity: 1; }
+.cam-full[data-controls] .cam-full__controls > * { pointer-events: auto; }
+.cam-name--full { top: var(--pad); bottom: auto; left: var(--pad); }
+.cam-round {
+  position: absolute;
+  width: var(--button);
+  height: var(--button);
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--control-line);
+  background: var(--label-bg);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cam-round svg { width: 1.5rem; height: 1.5rem; }
+.cam-close { top: var(--pad); right: var(--pad); }
+.cam-prev, .cam-next { top: 50%; transform: translateY(-50%); }
+.cam-prev { left: var(--pad); }
+.cam-next { right: var(--pad); }

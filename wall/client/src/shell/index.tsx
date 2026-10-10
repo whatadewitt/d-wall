@@ -139,6 +139,11 @@ export async function boot(app: HTMLElement): Promise<void> {
 
   post('/api/state', { state: 'active', via: 'boot' });
   go(home.id);
+
+  // Load every rail screen's code 30 s after boot, so the first switch to it is fast (section 4).
+  window.setTimeout(() => {
+    for (const s of railScreens) s.load().catch(() => {});
+  }, 30_000);
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string): HTMLElementTagNameMap[K] {

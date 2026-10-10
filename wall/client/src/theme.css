@@ -56,6 +56,12 @@
   --radius-rail-item: 1.125rem;
   --radius-chip: 8px;           /* all-day chips */
   --scrim: rgba(8, 10, 13, 0.6); /* behind the event sheet */
+  --tile-bg: #171D25;           /* camera tile before its first image */
+  --tile-stripe: #1B222B;
+  --label-bg: rgba(15, 19, 24, 0.82); /* labels over camera images */
+  --video-bg: #000000;          /* letterboxing around live video */
+  --radius-label: 14px;
+  --radius-age: 12px;
 
   /* Type (section 9). The root size is viewport height / 50, so 1rem = 16px at 800 px tall. */
   --fs-title: 2.25rem;      /* 36px display, page title */
@@ -71,6 +77,8 @@
   --fs-legend: 0.9375rem;   /* 15px, calendar legend */
   --fs-button: 1.0625rem;   /* 17px bold, Today and Week buttons */
   --fs-tiny: 0.75rem;       /* 12px, the "all day" gutter label (mockup) */
+  --fs-subtitle: 1.125rem;  /* 18px, "Tap a camera for live view" */
+  --fs-tile-name: 1.25rem;  /* 20px bold, camera names */
 
   /* Layout constants (section 9). */
   --rail-w: 5.5rem;         /* 88px */
@@ -89,7 +97,8 @@
 
   /* Spacing steps used by the mockups, named by their px value at 800 px tall. */
   --sp-2: 0.125rem;  --sp-4: 0.25rem;   --sp-5: 0.3125rem; --sp-6: 0.375rem;
-  --sp-7: 0.4375rem; --sp-8: 0.5rem;    --sp-14: 0.875rem; --sp-16: 1rem;
+  --sp-7: 0.4375rem; --sp-8: 0.5rem;    --sp-9: 0.5625rem; --sp-10: 0.625rem;
+  --sp-12: 0.75rem;  --sp-14: 0.875rem; --sp-16: 1rem;
   --sp-18: 1.125rem; --sp-20: 1.25rem;  --sp-28: 1.75rem;
 }
 
