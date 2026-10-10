@@ -1,7 +1,7 @@
 // The cameras screen (spec section 6): a 2x2 grid of refreshing stills; tap for full-screen live view.
 // Every timer, fetch and subscription comes from ctx; blob URLs and the peer connection are
 // released on unmount.
-import { createRef, render } from 'preact';
+import { createRef, render, type RefObject } from 'preact';
 import type { Mount } from '../types';
 import { openLive, type Live } from './live';
 import { Full, Grid, type CamInfo, type TileState } from './view';
@@ -42,6 +42,48 @@ export const mount: Mount = (root, ctx) => {
   };
   let full: FullView | null = null;
   let live: Live | null = null;
+
+  // Experiment (cameraOptions.grid: live): each tile plays its camera's low stream, over its still.
+  // All tile streams close before full view opens, so full view is still the only big stream.
+  const gridLive = config.cameraGrid === 'live';
+  const tileVideos = new Map<string, RefObject<HTMLVideoElement>>();
+  const tileLive = new Map<string, Live>();
+  const tilePlaying = new Set<string>();
+  const videoRefFor = (id: string) => {
+    let r = tileVideos.get(id);
+    if (!r) tileVideos.set(id, (r = createRef()));
+    return r;
+  };
+
+  function startTileStreams(): void {
+    if (!gridLive || full) return;
+    for (const c of known.cams) {
+      if (tileLive.has(c.id)) continue;
+      const video = videoRefFor(c.id).current;
+      if (!video) continue;
+      const session = openLive(ctx, c.id, video, 'low');
+      tileLive.set(c.id, session);
+      video.onplaying = () => {
+        if (tileLive.get(c.id) !== session) return;
+        tilePlaying.add(c.id);
+        draw();
+      };
+      session.ready.catch(() => {
+        if (tileLive.get(c.id) !== session) return;
+        session.close(); // this tile stays on stills
+      });
+    }
+  }
+
+  function stopTileStreams(): void {
+    for (const [id, session] of tileLive) {
+      const video = tileVideos.get(id)?.current;
+      if (video) video.onplaying = null;
+      session.close();
+    }
+    tileLive.clear();
+    tilePlaying.clear();
+  }
 
   const tile = (id: string): TileState => {
     let t = tiles.get(id);
@@ -91,7 +133,7 @@ export const mount: Mount = (root, ctx) => {
 
   function pollGrid(): void {
     lastPoll = Date.now();
-    for (const c of known.cams) void pollStill(c.id, false);
+    for (const c of known.cams) if (!tilePlaying.has(c.id)) void pollStill(c.id, false);
   }
 
   function report(): void {
@@ -123,6 +165,7 @@ export const mount: Mount = (root, ctx) => {
   }
 
   function openFull(index: number): void {
+    stopTileStreams();
     stopLive();
     const n = known.cams.length;
     full = { index: ((index % n) + n) % n, controls: true, status: 'connecting', openedAt: Date.now(), connectMs: null, stream: '', lastStats: Date.now() };
@@ -164,6 +207,7 @@ export const mount: Mount = (root, ctx) => {
     lastTouch = Date.now();
     pollGrid();
     draw();
+    startTileStreams();
   }
 
   // Horizontal swipe in full view moves to the previous or next camera.
@@ -222,6 +266,9 @@ export const mount: Mount = (root, ctx) => {
       <Grid
         cams={known.cams}
         tiles={tiles}
+        gridLive={gridLive}
+        videoRef={videoRefFor}
+        playing={tilePlaying}
         now={now}
         showStale={now - mountedAt >= STALE_AFTER_OPEN_MS}
         time={time.format(now)}
@@ -259,6 +306,7 @@ export const mount: Mount = (root, ctx) => {
 
   ctx.every(1000, tick);
   ctx.signal.addEventListener('abort', () => {
+    stopTileStreams();
     live?.close();
     live = null;
     render(null, root);
@@ -267,6 +315,7 @@ export const mount: Mount = (root, ctx) => {
   });
 
   draw();
+  startTileStreams();
   ctx
     .fetch('/api/cameras')
     .then((r) => (r.ok ? r.json() : null))
@@ -276,6 +325,7 @@ export const mount: Mount = (root, ctx) => {
       if (full && full.index >= list.length) closeFull();
       pollGrid();
       draw();
+      startTileStreams();
     })
     .catch(() => {});
   if (known.cams.length) pollGrid();

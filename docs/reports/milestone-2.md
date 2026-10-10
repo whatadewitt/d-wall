@@ -156,4 +156,15 @@ If any camera stays under 15 fps, set `live: medium`, restart, and repeat.
 - **Other:** the existing physical chime stays as it is.
 - **Unknown:** whether Protect can provide the chime's own ringtone file. Not needed for this approach.
 
-**Protect account role.** The deploy confirmed the local Protect account reaches the camera list and stream details. If it needed more than View Only, note it here (spec section 2 assumes view-only).
+**Protect account role.** Confirmed on the real UDM Pro, Oct 10: a local-only account with the Protect **View Only** role, and no access to other apps, sees the camera list and stream details and gets snapshots. This matches spec section 2.
+
+## 10. Experiment: live video in the grid (Oct 10, at your request)
+
+**Off by default.** Turn it on with `cameraOptions.grid: live` in `config.yaml` and `docker compose restart wall-server`.
+
+- Each tile plays its camera's **Low** stream over WebRTC (`POST /api/cameras/:id/webrtc?quality=low`, an addition to the section 10 route). The still stays underneath until the video plays, and remains as the fallback if a tile's stream fails.
+- Tapping a tile closes all tile streams before full view opens, so full view is still the only full-size stream. Closing full view reopens them.
+- A playing tile shows a red "Live" label instead of the age.
+- This goes against the section 1 ruling (stills in the grid, because four live streams is where a mid-range tablet runs out of memory and heats up). It's here so you can judge it on the Pixel Tablet. Watch the heartbeat `heapMB` and how warm the tablet gets. Keep it or remove it after.
+- Tested headless: the requests, the fallback to stills, closing streams for full view, and cleanup on leaving the screen. Playback itself is untested here (no H.264 in this Chromium).
+

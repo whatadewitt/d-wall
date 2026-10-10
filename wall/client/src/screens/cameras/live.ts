@@ -22,7 +22,7 @@ function iceGathered(pc: RTCPeerConnection): Promise<void> {
   });
 }
 
-export function openLive(ctx: ScreenContext, cameraId: string, video: HTMLVideoElement) {
+export function openLive(ctx: ScreenContext, cameraId: string, video: HTMLVideoElement, quality?: 'low') {
   const pc = new RTCPeerConnection();
   pc.addTransceiver('video', { direction: 'recvonly' });
   let media: MediaStream | null = null;
@@ -39,7 +39,7 @@ export function openLive(ctx: ScreenContext, cameraId: string, video: HTMLVideoE
   const ready = (async () => {
     await pc.setLocalDescription(await pc.createOffer());
     await iceGathered(pc); // LAN only, host candidates: this is quick
-    const res = await ctx.fetch(`/api/cameras/${encodeURIComponent(cameraId)}/webrtc`, {
+    const res = await ctx.fetch(`/api/cameras/${encodeURIComponent(cameraId)}/webrtc${quality ? `?quality=${quality}` : ''}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ type: 'offer', sdp: pc.localDescription!.sdp }),

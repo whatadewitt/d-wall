@@ -41,6 +41,9 @@ function ageLabel(t: TileState | undefined, now: number, showStale: boolean): { 
 export function Grid(p: {
   cams: CamInfo[];
   tiles: Map<string, TileState>;
+  gridLive: boolean;
+  videoRef(id: string): RefObject<HTMLVideoElement>;
+  playing: Set<string>;
   now: number;
   showStale: boolean;
   time: string;
@@ -62,10 +65,13 @@ export function Grid(p: {
       <section class="cams-grid" aria-label="Camera grid">
         {p.cams.map((c, i) => {
           const t = p.tiles.get(c.id);
-          const age = ageLabel(t, p.now, p.showStale);
+          const live = p.playing.has(c.id);
+          const age = live ? null : ageLabel(t, p.now, p.showStale);
           return (
-            <button type="button" class="cam-tile" aria-label={`Open ${c.name} camera${age?.stale ? ', image is stale' : ''}`} onClick={() => p.open(i)}>
+            <button key={c.id} type="button" class="cam-tile" aria-label={`Open ${c.name} camera${age?.stale ? ', image is stale' : ''}`} onClick={() => p.open(i)}>
               {t && <Images t={t} />}
+              {p.gridLive && <video ref={p.videoRef(c.id)} class="cam-img" data-front={live || undefined} muted autoplay playsInline />}
+              {live && <span class="cam-age cam-age--live">Live</span>}
               {age && <span class="cam-age" data-stale={age.stale || undefined}>{age.text}</span>}
               <span class="cam-name">{c.doorbell && <Bell />}{c.name}</span>
             </button>

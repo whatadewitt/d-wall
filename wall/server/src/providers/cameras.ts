@@ -224,8 +224,9 @@ export function camerasProvider({ config, log }: ProviderDeps): Provider {
         return reply.type('image/jpeg').send(frame.jpeg);
       });
 
-      app.post<{ Params: { id: string }; Body: { type: string; sdp: string } }>('/api/cameras/:id/webrtc', {
+      app.post<{ Params: { id: string }; Querystring: { quality?: 'low' }; Body: { type: string; sdp: string } }>('/api/cameras/:id/webrtc', {
         schema: {
+          querystring: { type: 'object', properties: { quality: { const: 'low' } } }, // grid tiles (cameraOptions.grid: live)
           body: {
             type: 'object',
             required: ['type', 'sdp'],
@@ -235,7 +236,8 @@ export function camerasProvider({ config, log }: ProviderDeps): Provider {
       }, async (req, reply) => {
         const cam = byId.get(req.params.id);
         if (!cam) return reply.code(404).send({ error: 'unknown camera' });
-        const quality: Quality = options.live === 'medium' && cam.ready.has('medium') ? 'medium' : 'main';
+        const quality: Quality =
+          req.query.quality === 'low' && cam.ready.has('low') ? 'low' : options.live === 'medium' && cam.ready.has('medium') ? 'medium' : 'main';
         try {
           const sdp = await go2rtc.webrtc(streamName(cam, quality), req.body.sdp);
           return { type: 'answer', sdp, stream: quality };
