@@ -11,7 +11,14 @@ import { providers as createProviders } from './providers/index.js';
 const config = loadConfig();
 const app = Fastify({
   // Structured JSON logs. No request logging: URLs and bodies stay out of the log.
-  logger: { level: process.env.LOG_LEVEL ?? 'info' },
+  // Secrets never reach a log call (section 10); redact is the backstop if a field name slips through.
+  logger: {
+    level: process.env.LOG_LEVEL ?? 'info',
+    redact: {
+      paths: ['password', 'secret', 'token', 'authorization', '*.password', '*.secret', '*.token', '*.authorization', '*.headers', 'headers', 'url'],
+      censor: '[redacted]',
+    },
+  },
   logController: new LogController({ disableRequestLogging: true }),
   bodyLimit: 16 * 1024,
 });
@@ -116,6 +123,16 @@ app.post('/api/telemetry', {
             sound: { type: 'string', maxLength: 12 },
           },
         },
+        // The client's heap watchdog, just before it reloads the page (section 11).
+        watchdog: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            reason: { type: 'string', maxLength: 20 },
+            heapMB: { type: 'number' },
+            budgetMB: { type: 'number' },
+          },
+        },
         lastSwitch: {
           type: ['object', 'null'],
           additionalProperties: false,
@@ -134,8 +151,10 @@ app.post('/api/telemetry', {
     },
   },
 }, async (req) => {
-  const body = req.body as { video?: unknown; doorbell?: unknown };
-  if (body.video) log.info({ video: body.video }, 'live view');
+  const body = req.body as { video?: unknown; doorbell?: unknown; watchdog?: unknown };
+  bus.emit('heartbeat'); // any telemetry is a sign of life for the heartbeat watchdog
+  if (body.watchdog) log.warn({ watchdog: body.watchdog }, 'client watchdog reload');
+  else if (body.video) log.info({ video: body.video }, 'live view');
   else if (body.doorbell) log.info({ doorbell: body.doorbell }, 'doorbell popup');
   else log.info({ telemetry: req.body }, 'heartbeat');
   return { ok: true };
@@ -162,6 +181,14 @@ const shutdown = async (signal: string) => {
   await app.close();
   process.exit(0);
 };
+// A crash is logged as one JSON line, then the process exits and Docker restarts it.
+const crash = (kind: string) => (err: unknown) => {
+  const e = err instanceof Error ? err : new Error(String(err));
+  log.fatal({ err: { name: e.name, message: e.message, stack: e.stack } }, kind);
+  process.exit(1);
+};
+process.on('uncaughtException', crash('uncaught exception'));
+process.on('unhandledRejection', crash('unhandled rejection'));
 process.on('SIGTERM', () => void shutdown('SIGTERM'));
 process.on('SIGINT', () => void shutdown('SIGINT'));
 

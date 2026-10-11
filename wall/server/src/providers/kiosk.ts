@@ -1,5 +1,6 @@
 import type { Config } from '../config.js';
-import { inQuietHours } from '../time.js';
+import { serverState } from '../state.js';
+import { dayOfWeek, hhmm, inQuietHours, localTime } from '../time.js';
 import type { Provider, ProviderDeps } from './types.js';
 
 // Kiosk controller (spec section 10): a thin wrapper over Fully Kiosk's Remote Admin REST API.
@@ -80,24 +81,110 @@ export function createKioskController(
   };
 }
 
-const QUIET_CHECK_MS = 30_000;
+const TICK_MS = 30_000;
+
+// Nightly reload (spec section 11): loadStartURL at 03:30, restartApp at 03:45 on Sundays instead.
+// It waits up to an hour while the tablet is in use, then runs anyway; never during a doorbell popup.
+const RELOAD_AT = '03:30';
+const SUNDAY_RESTART_AT = '03:45';
+const RELOAD_WAIT_MIN = 60;
+const RELOAD_TRIES = 3; // failed calls before giving up until tomorrow
+
+// Heartbeat watchdog (spec section 11): no sign of life for 5 minutes while the screen should be on
+// means loadStartURL, then restartApp 2 and 4 minutes later. After those 3 attempts it stops and logs.
+const SILENT_MS = 5 * 60_000;
+const STEP_MS = 2 * 60_000;
+const WATCHDOG_TRIES = 3;
 
 // Quiet hours (spec section 8): Fully's motion detection goes off at the start and back on at the
 // end, so someone walking past at night does not light up the room. A ring and a touch still wake it.
-// During a soak, log whatever RAM figures Fully Kiosk reports, every 5 minutes (spec section 11).
-export function kioskProvider({ config, kiosk, log }: ProviderDeps): Provider {
+// Also the nightly reload and the heartbeat watchdog (section 11), which use the same 30 s tick.
+// During a soak, log whatever RAM figures Fully Kiosk reports, every 5 minutes (section 11).
+export function kioskProvider({ config, kiosk, log, bus, publishState }: ProviderDeps): Provider {
   let timer: NodeJS.Timeout | undefined;
-  let quietTimer: NodeJS.Timeout | undefined;
+  let tickTimer: NodeJS.Timeout | undefined;
   let motionOn: boolean | null = null; // what Fully was last told; null until a call succeeds
+  const tz = config.timezone;
+
+  const doorbellActive = () => {
+    const until = serverState.doorbell.activeUntil;
+    return until !== null && Date.parse(until) > Date.now();
+  };
 
   // Sets motion detection to match the clock. A failed call is retried on the next check.
   async function applyQuietHours(): Promise<void> {
-    const want = !inQuietHours(config.idle.quietHours, config.timezone);
+    const want = !inQuietHours(config.idle.quietHours, tz);
     if (want === motionOn) return;
     const res = await kiosk.setBooleanSetting(MOTION_DETECTION_KEY, want);
     if (!res.ok) return;
     motionOn = want;
     log.info({ kiosk: 'quiet hours', motionDetection: want }, want ? 'kiosk: quiet hours over, motion detection on' : 'kiosk: quiet hours, motion detection off');
+  }
+
+  // In use means Active: touched within idle.toIdleSec. The soak pauses the idle clock, so there
+  // Active means nothing and the reload does not wait.
+  const nightly = { day: '', tries: 0, waitLogged: '' };
+  async function nightlyReload(): Promise<void> {
+    const { ymd, minutes } = localTime(tz);
+    if (nightly.day === ymd) return; // done, or given up, today
+    const sunday = dayOfWeek(ymd) === 0;
+    const late = minutes - hhmm(sunday ? SUNDAY_RESTART_AT : RELOAD_AT);
+    if (late < 0 || late > RELOAD_WAIT_MIN + 5) return; // outside the window: a missed night is skipped
+    if (doorbellActive()) return;
+    const inUse = serverState.tablet.state === 'active' && !config.debug.soak;
+    if (inUse && late < RELOAD_WAIT_MIN) {
+      if (nightly.waitLogged !== ymd) log.info({ kiosk: 'nightly', waiting: true }, 'kiosk: tablet in use, nightly reload waits');
+      nightly.waitLogged = ymd;
+      return;
+    }
+    const cmd = sunday ? 'restartApp' : 'loadStartURL';
+    const res = sunday ? await kiosk.restartApp() : await kiosk.loadStartURL();
+    nightly.tries++;
+    if (res.ok) log.info({ kiosk: 'nightly', cmd, waitedMin: Math.max(0, late), forced: inUse }, 'kiosk: nightly reload');
+    else if (nightly.tries >= RELOAD_TRIES) log.error({ kiosk: 'nightly', cmd, tries: nightly.tries }, 'kiosk: nightly reload failed, giving up until tomorrow');
+    if (res.ok || nightly.tries >= RELOAD_TRIES) Object.assign(nightly, { day: ymd, tries: 0 });
+  }
+
+  // Any heartbeat or state report from the page is a sign of life.
+  let lastSign = Date.now();
+  let tries = 0;
+  let gaveUp = false;
+  const alive = () => {
+    if (tries) log.info({ watchdog: 'recovered', tries }, 'watchdog: tablet is back');
+    lastSign = Date.now();
+    tries = 0;
+    gaveUp = false;
+  };
+
+  // The screen should be on while Active or Idle, and during a doorbell popup. With no state yet
+  // (the server restarted) a live page re-reports within a minute, so expect one outside quiet hours.
+  function shouldBeOn(): boolean {
+    if (doorbellActive()) return true;
+    const s = serverState.tablet.state;
+    if (s === null) return !gaveUp && !inQuietHours(config.idle.quietHours, tz);
+    return s === 'active' || s === 'idle';
+  }
+
+  // Escalates on silence: loadStartURL at 5 minutes, restartApp at 7 and 9, give up at 11.
+  async function heartbeatWatchdog(): Promise<void> {
+    const now = Date.now();
+    if (!shouldBeOn()) {
+      lastSign = now; // silence while the screen is meant to be off does not count
+      return;
+    }
+    const silent = now - lastSign;
+    if (tries < WATCHDOG_TRIES && silent >= SILENT_MS + tries * STEP_MS) {
+      const cmd = tries === 0 ? 'loadStartURL' : 'restartApp';
+      tries++;
+      log.warn({ watchdog: cmd, attempt: tries, silentSec: Math.round(silent / 1000), state: serverState.tablet.state }, 'watchdog: no heartbeat from the tablet');
+      void (cmd === 'loadStartURL' ? kiosk.loadStartURL() : kiosk.restartApp());
+    } else if (tries === WATCHDOG_TRIES && !gaveUp && silent >= SILENT_MS + tries * STEP_MS) {
+      gaveUp = true;
+      log.error({ watchdog: 'gave up', attempts: tries, silentSec: Math.round(silent / 1000) }, 'watchdog: tablet still silent, giving up until it reports again');
+      // The tablet is gone as far as the server knows: warm stills stop (section 6).
+      serverState.tablet = { state: null, since: new Date().toISOString() };
+      publishState();
+    }
   }
 
   async function logRam(): Promise<void> {
@@ -109,21 +196,36 @@ export function kioskProvider({ config, kiosk, log }: ProviderDeps): Provider {
     log.info({ deviceRam: ram }, 'kiosk device ram');
   }
 
+  let ticking = false;
+  const tick = async () => {
+    if (ticking) return;
+    ticking = true;
+    try {
+      await applyQuietHours();
+      await nightlyReload();
+      await heartbeatWatchdog();
+    } finally {
+      ticking = false;
+    }
+  };
+
   return {
     id: 'kiosk',
     topics: [],
     routes() {},
     start() {
       if (!kiosk.enabled) return;
-      void applyQuietHours(); // at start-up too: the server may have been down at a boundary
-      quietTimer = setInterval(() => void applyQuietHours(), QUIET_CHECK_MS);
+      bus.on('heartbeat', alive);
+      bus.on('tablet-state', alive);
+      void tick(); // at start-up too: the server may have been down at a boundary
+      tickTimer = setInterval(() => void tick(), TICK_MS);
       if (!config.debug.soak) return;
       void logRam();
       timer = setInterval(() => void logRam(), 5 * 60_000);
     },
     stop() {
       clearInterval(timer);
-      clearInterval(quietTimer);
+      clearInterval(tickTimer);
     },
   };
 }

@@ -1,14 +1,15 @@
 import type { ServerResponse } from 'node:http';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-// Server-sent event hub for GET /api/events. Topics: calendar.changed, doorbell.ring, state.
+// Server-sent event hub for GET /api/events. Topics: calendar.changed, doorbell.ring, state, ping.
 export class Hub {
   private clients = new Set<ServerResponse>();
   private keepAlive: NodeJS.Timeout;
 
   constructor() {
-    // A comment line every 25 s keeps idle connections open through proxies and Wi-Fi sleep.
-    this.keepAlive = setInterval(() => this.write(': ping\n\n'), 25_000);
+    // A `ping` every 25 s keeps idle connections open through proxies and Wi-Fi sleep, and lets the
+    // client tell a stream that died silently from a quiet one (a comment line never reaches it).
+    this.keepAlive = setInterval(() => this.publish('ping', {}), 25_000);
   }
 
   get size(): number {

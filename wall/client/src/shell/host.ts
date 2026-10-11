@@ -21,9 +21,10 @@ export class ScreenHost {
     return this.current?.id ?? null;
   }
 
+  // The code loads before the current screen unmounts, so if the server is down and the code is
+  // not cached, the current screen stays rather than leaving the stage blank (section 11).
   async show(screen: Screen): Promise<void> {
-    this.unmount();
-    const token = ++this.token;
+    let token = ++this.token;
     let mod: { mount: Mount };
     try {
       mod = await screen.load();
@@ -32,6 +33,8 @@ export class ScreenHost {
       return;
     }
     if (token !== this.token) return; // another show() or unmount() happened while loading
+    this.unmount();
+    token = ++this.token;
 
     const root = document.createElement('div');
     root.className = 'screen-root';
