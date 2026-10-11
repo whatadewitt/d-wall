@@ -47,16 +47,23 @@ export function zonedMidnight(ymd: string, tz: string): Date {
   return new Date(guess);
 }
 
+// The local date and minutes past local midnight in a time zone.
+export function localTime(tz: string, ms = Date.now()): { ymd: string; minutes: number } {
+  const p = parts(ms, tz);
+  return { ymd: `${p.year}-${pad(p.month)}-${pad(p.day)}`, minutes: p.hour * 60 + p.minute };
+}
+
+// "HH:MM" as minutes past midnight.
+export function hhmm(s: string): number {
+  const [h, m] = s.split(':').map(Number);
+  return h * 60 + m;
+}
+
 // Quiet hours (spec section 8): "HH:MM" to "HH:MM" in a time zone. A range past midnight wraps.
 export function inQuietHours(q: { from: string; to: string } | undefined, tz: string, ms = Date.now()): boolean {
   if (!q?.from || !q?.to) return false;
-  const toMin = (hhmm: string) => {
-    const [h, m] = hhmm.split(':').map(Number);
-    return h * 60 + m;
-  };
-  const p = parts(ms, tz);
-  const now = p.hour * 60 + p.minute;
-  const from = toMin(q.from);
-  const to = toMin(q.to);
+  const now = localTime(tz, ms).minutes;
+  const from = hhmm(q.from);
+  const to = hhmm(q.to);
   return from <= to ? now >= from && now < to : now >= from || now < to;
 }

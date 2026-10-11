@@ -8,12 +8,13 @@ const QUIET_OFF_MS = 60_000;
 // The idle clock (spec section 8): Active -> Idle after toIdleSec without touch, Idle -> Off
 // after toOffMin more. In quiet hours Idle is skipped and the screen goes Off after 1 minute.
 export function createIdleClock(opts: {
+  initial: IdleState;
   idle: ClientConfig['idle'];
   paused: boolean;
   quiet(): boolean;
   onChange(state: IdleState, via: string): void;
 }) {
-  let state: IdleState = 'active';
+  let state: IdleState = opts.initial;
   let lastTouch = Date.now();
   let wokeAt = 0;
   let held = false; // the doorbell popup holds the clock: nothing steps down while it is open
@@ -45,6 +46,10 @@ export function createIdleClock(opts: {
     // True for 400 ms after a wake: all touches are ignored (spec section 8).
     get justWoke() {
       return Date.now() - wokeAt < 400;
+    },
+    // Since the last touch, wake or hold: the heap watchdog's quiet moment (section 11).
+    get sinceTouch() {
+      return Date.now() - lastTouch;
     },
     touch() {
       lastTouch = Date.now();

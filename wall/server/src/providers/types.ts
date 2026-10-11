@@ -9,7 +9,7 @@ export interface ProviderDeps {
   hub: Hub;
   log: FastifyBaseLogger;
   kiosk: KioskController;
-  bus: EventEmitter; // 'client-connected', 'tablet-state' (state), 'doorbell-ring' (cameraId)
+  bus: EventEmitter; // 'client-connected', 'tablet-state' (state), 'heartbeat', 'doorbell-ring' (cameraId)
   publishState(): void; // send the current snapshot as a `state` event
 }
 

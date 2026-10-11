@@ -4,7 +4,7 @@ import type { Screen } from '../screens/types';
 import { getState, post } from './api';
 import type { ServerSnapshot } from './config';
 import { createDoorbell } from './doorbell';
-import { connect, emit, subscribe } from './events';
+import { checkStream, connect, emit, streamLive, subscribe } from './events';
 import { bindFully } from './fully';
 import { ScreenHost } from './host';
 import { createIdleClock, type IdleState } from './idle';
@@ -13,11 +13,16 @@ import { Rail } from './rail';
 import { signal } from './signals';
 import { startSoak } from './soak';
 import { startHeartbeat } from './telemetry';
+import { createHeapWatchdog } from './watchdog';
 
 const RETRY_SEC = [1, 2, 5, 10, 30];
 
 // The doorbell popup is not a rail screen; it mounts in the overlay layer (spec sections 4 and 7).
 const IDLE_SCREEN = 'photos'; // mounted while Idle, full screen (section 8)
+// Heap budgets for the heap watchdog (section 11): 60 MB, or 120 MB on a screen with live video.
+const HEAP_BUDGET_MB = 60;
+const VIDEO_HEAP_BUDGET_MB = 120;
+const VIDEO_SCREENS = ['cameras'];
 const doorbellOverlay: Screen = { id: 'doorbell', title: 'Doorbell', icon: 'bell', load: () => import('../overlays/doorbell') };
 
 async function firstState(app: HTMLElement): Promise<ServerSnapshot> {
@@ -79,8 +84,12 @@ export async function boot(app: HTMLElement): Promise<void> {
   }
 
   // Idle clock. In soak mode it is paused so the loop runs all night with the screen on.
+  // A page loaded while hidden (the nightly reload, a watchdog reload with the screen off) starts
+  // Off, with nothing mounted, so it neither expects nor sends a lit screen.
+  const bootHidden = !config.soak && document.visibilityState === 'hidden';
   const quiet = quietChecker(config);
   const idle = createIdleClock({
+    initial: bootHidden ? 'off' : 'active',
     idle: config.idle,
     paused: config.soak,
     quiet: () => quiet(),
@@ -136,10 +145,13 @@ export async function boot(app: HTMLElement): Promise<void> {
   // interface events are recorded alongside it for the milestone 0 spike.
   document.addEventListener('visibilitychange', () => {
     signal(document.visibilityState);
-    if (document.visibilityState === 'visible' && idle.state === 'off') idle.wake('visibility');
+    if (document.visibilityState !== 'visible') return;
+    checkStream(35_000, true); // the stream may have died while the screen was off
+    if (idle.state === 'off') idle.wake('visibility');
   });
   const hasFully = bindFully((ev) => {
     signal(`fully:${ev}`);
+    if (ev === 'screenOn' || ev === 'onMotion') checkStream(35_000, true);
     if ((ev === 'screenOn' || ev === 'onMotion') && idle.state === 'off') idle.wake(`fully:${ev}`);
   });
   if (!hasFully) signal('fully:unavailable');
@@ -167,28 +179,41 @@ export async function boot(app: HTMLElement): Promise<void> {
   // The event stream. Every (re)connect refetches /api/state and hands it to `state` subscribers.
   // The fetch also measures the server's clock against this page's, for the ring timings.
   // The quickest round trip gives the best estimate, so a slow one replaces it only once it is an hour old.
+  // On a reconnect, if the server's idea of the tablet state differs (it restarted, or a report was
+  // lost while it was down), the page reports its state again.
   let skewSample = { rtt: Infinity, at: 0 };
+  let opened = 0;
   connect(() => {
     const sent = Date.now();
+    const reconnect = opened++ > 0;
     getState().then((s) => {
       const now = Date.now();
       if (now - sent <= skewSample.rtt || now - skewSample.at > 3_600_000) {
         skew = Date.parse(s.serverTime) - (sent + now) / 2;
         skewSample = { rtt: now - sent, at: now };
       }
+      if (reconnect && s.tablet.state !== idle.state) post('/api/state', { state: idle.state, via: 'resync' });
       emit('state', s);
     }, () => {});
   });
 
   const soakCycles = config.soak ? startSoak(main, registry) : null;
-  startHeartbeat(() => ({ screen: main.currentId, state: idle.state, soakCycles: soakCycles?.() ?? null, lastSwitch }));
+  const heapWatchdog = createHeapWatchdog({
+    budgetMB: () => (VIDEO_SCREENS.includes(main.currentId ?? '') ? VIDEO_HEAP_BUDGET_MB : HEAP_BUDGET_MB),
+    quiet: () => !doorbell.open && idle.sinceTouch >= 10_000,
+    online: streamLive,
+  });
+  startHeartbeat(() => ({ screen: main.currentId, state: idle.state, soakCycles: soakCycles?.() ?? null, lastSwitch }), heapWatchdog);
 
-  post('/api/state', { state: 'active', via: 'boot' });
-  go(home.id);
+  post('/api/state', { state: idle.state, via: bootHidden ? 'boot-hidden' : 'boot' });
+  if (bootHidden) drawRail();
+  else go(home.id);
 
   // Load every rail screen's code 30 s after boot, so the first switch to it is fast (section 4).
+  // The photos code too: Idle may begin while the server is down, and loaded code is kept.
   window.setTimeout(() => {
     for (const s of railScreens) s.load().catch(() => {});
+    byId.get(IDLE_SCREEN)?.load().catch(() => {});
   }, 30_000);
 }
 
