@@ -89,7 +89,7 @@ cd wall && docker compose up -d --build       # also pulls go2rtc
 docker compose logs wall-server | grep -E "cameras:|still stats"
 ```
 
-Each camera should log `cameras: found in Protect` with `medium: true, low: true`. If you see `not found in Protect by its RTSPS address`, the `rtsps` value isn't the High address from Protect. `Protect lookup failed` gives the reason, such as a wrong password or an unreachable host.
+Each camera should log `cameras: found in Protect` with `medium: true, low: true`. The server repeats the Protect lookup only every 30 minutes, so after turning on a quality in Protect, run `docker compose restart wall-server` to pick it up straight away (seen on the real server, Oct 11). If you see `not found in Protect by its RTSPS address`, the `rtsps` value isn't the High address from Protect. `Protect lookup failed` gives the reason, such as a wrong password or an unreachable host.
 
 ## 6. Spikes (on the server and tablet)
 
