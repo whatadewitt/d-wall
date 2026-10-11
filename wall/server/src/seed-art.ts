@@ -73,8 +73,20 @@ function publicDomain(meta: ImageInfo['extmetadata']): string | null {
   return null;
 }
 
+// The searches, tried in order until the folder is full:
+//   incategory: files directly in the category
+//   deepcat:    files anywhere in its subcategories (Commons refuses this for very large trees)
+//   insource:   files whose description names the Google Art Project, whatever their category
+type Scope = 'incategory' | 'deepcat' | 'insource';
+const SCOPES: Scope[] = ['incategory', 'deepcat', 'insource'];
+
+function query(args: Args, scope: Scope): string {
+  const where = scope === 'insource' ? 'insource:"Google Art Project"' : `${scope}:"${args.category}"`;
+  return `filetype:bitmap ${where} ${args.search}`.replace(/\s+/g, ' ').trim();
+}
+
 // One page of candidates from Commons search, with what is needed to judge and fetch each.
-async function candidates(args: Args, offset: number, scope: 'incategory' | 'deepcat'): Promise<{ pages: Page[]; next: number | null }> {
+async function candidates(args: Args, offset: number, scope: Scope): Promise<{ pages: Page[]; next: number | null }> {
   const q = new URLSearchParams({
     action: 'query',
     format: 'json',
@@ -83,7 +95,7 @@ async function candidates(args: Args, offset: number, scope: 'incategory' | 'dee
     gsrnamespace: '6',
     gsrlimit: String(PAGE),
     gsroffset: String(offset),
-    gsrsearch: `filetype:bitmap ${scope}:"${args.category}" ${args.search}`.trim(),
+    gsrsearch: query(args, scope),
     prop: 'imageinfo',
     iiprop: 'url|size|mime|extmetadata',
     iiurlwidth: String(DOWNLOAD_WIDTH),
@@ -91,7 +103,15 @@ async function candidates(args: Args, offset: number, scope: 'incategory' | 'dee
   });
   const res = await get(`${API}?${q}`);
   if (!res.ok) throw new Error(`Commons search: HTTP ${res.status}`);
-  const body = (await res.json()) as { query?: { pages?: Page[] }; continue?: { gsroffset?: number } };
+  const body = (await res.json()) as {
+    query?: { pages?: Page[] };
+    continue?: { gsroffset?: number };
+    warnings?: unknown;
+    error?: { info?: string };
+  };
+  // Commons explains an empty result here (for example a category tree too large for deepcat).
+  if (body.error) console.log(`  Commons: ${body.error.info ?? JSON.stringify(body.error)}`);
+  if (body.warnings) console.log(`  Commons warning: ${JSON.stringify(body.warnings).slice(0, 300)}`);
   return { pages: body.query?.pages ?? [], next: body.continue?.gsroffset ?? null };
 }
 
@@ -111,54 +131,54 @@ async function main(): Promise<void> {
   let files = (await readdir(args.dir)).filter((n) => n !== 'credits.json').length;
   console.log(`${files} images already in the folder; aiming for ${args.count}.`);
 
-  let offset: number | null = 0;
   let checked = 0;
   let skipped = 0;
-  // Files directly in the category first; if it holds none (only subcategories), search the tree.
-  let scope: 'incategory' | 'deepcat' = 'incategory';
-  while (files < args.count && offset !== null) {
-    const page = await candidates(args, offset, scope);
-    if (!page.pages.length && offset === 0 && scope === 'incategory') {
-      console.log('No files directly in the category; searching its subcategories too.');
-      scope = 'deepcat';
-      continue;
-    }
-    offset = page.next;
-    for (const p of page.pages) {
-      if (files >= args.count) break;
-      checked++;
-      const info = p.imageinfo?.[0];
-      if (!info || have.has(info.descriptionurl)) continue;
-      const licence = publicDomain(info.extmetadata);
-      if (!licence || info.width < MIN_WIDTH || info.width <= info.height) {
-        skipped++;
-        continue;
-      }
-      const url = info.thumburl ?? info.url;
-      const res = await get(url);
-      const type = res.headers.get('content-type') ?? '';
-      if (!res.ok || !/^image\/(jpeg|png)/.test(type)) {
-        skipped++;
+  for (const scope of SCOPES) {
+    if (files >= args.count) break;
+    console.log(`Searching: ${query(args, scope)}`);
+    let offset: number | null = 0;
+    let found = 0;
+    while (files < args.count && offset !== null) {
+      const page = await candidates(args, offset, scope);
+      offset = page.next;
+      found += page.pages.length;
+      for (const p of page.pages) {
+        if (files >= args.count) break;
+        checked++;
+        const info = p.imageinfo?.[0];
+        if (!info || have.has(info.descriptionurl)) continue;
+        const licence = publicDomain(info.extmetadata);
+        if (!licence || info.width < MIN_WIDTH || info.width <= info.height) {
+          skipped++;
+          continue;
+        }
+        const url = info.thumburl ?? info.url;
+        const res = await get(url);
+        const type = res.headers.get('content-type') ?? '';
+        if (!res.ok || !/^image\/(jpeg|png)/.test(type)) {
+          skipped++;
+          await sleep(PAUSE_MS);
+          continue;
+        }
+        const meta = info.extmetadata ?? {};
+        const title = plain(meta.ObjectName?.value) || p.title.replace(/^File:/, '').replace(/\.[a-z]+$/i, '');
+        const name = `${String(files + 1).padStart(3, '0')}-${slug(title)}.${type.includes('png') ? 'png' : 'jpg'}`;
+        await writeFile(join(args.dir, name), Buffer.from(await res.arrayBuffer()));
+        credits[name] = {
+          title,
+          artist: plain(meta.Artist?.value),
+          date: plain(meta.DateTimeOriginal?.value).slice(0, 40),
+          licence,
+          source: info.descriptionurl,
+        };
+        have.add(info.descriptionurl);
+        files++;
+        await writeFile(creditsPath, JSON.stringify(credits, null, 2));
+        if (files % 10 === 0) console.log(`  ${files} of ${args.count}`);
         await sleep(PAUSE_MS);
-        continue;
       }
-      const meta = info.extmetadata ?? {};
-      const title = plain(meta.ObjectName?.value) || p.title.replace(/^File:/, '').replace(/\.[a-z]+$/i, '');
-      const name = `${String(files + 1).padStart(3, '0')}-${slug(title)}.${type.includes('png') ? 'png' : 'jpg'}`;
-      await writeFile(join(args.dir, name), Buffer.from(await res.arrayBuffer()));
-      credits[name] = {
-        title,
-        artist: plain(meta.Artist?.value),
-        date: plain(meta.DateTimeOriginal?.value).slice(0, 40),
-        licence,
-        source: info.descriptionurl,
-      };
-      have.add(info.descriptionurl);
-      files++;
-      await writeFile(creditsPath, JSON.stringify(credits, null, 2));
-      if (files % 10 === 0) console.log(`  ${files} of ${args.count}`);
-      await sleep(PAUSE_MS);
     }
+    console.log(`  ${found} results from this search.`);
   }
   console.log(`Done: ${files} images in the folder (${checked} candidates checked, ${skipped} skipped).`);
   if (files < args.count) console.log('Ran out of search results. Try --search with another word, such as "river" or "sea".');
