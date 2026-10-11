@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      CONFIG_PATH: /app/config.yaml
+      CONFIG_PATH: /app/config/config.yaml
       GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google-service-account.json
       GO2RTC_URL: http://go2rtc:1984
     depends_on: [go2rtc]
@@ -14,7 +14,8 @@ services:
       # LAN interface only (section 10, security rules).
       - "${WALL_BIND_ADDR:?set WALL_BIND_ADDR in .env to the media server's LAN address}:9600:9600"
     volumes:
-      - ./config.yaml:/app/config.yaml:ro
+      # The whole folder, not the file: a restart then sees edits from any editor.
+      - ./config:/app/config:ro
       # The Google service account key stays outside the repo (section 10, secrets).
       - "${GOOGLE_SA_KEY_FILE:?set GOOGLE_SA_KEY_FILE in .env to the service account key file}:/run/secrets/google-service-account.json:ro"
     mem_limit: 512m

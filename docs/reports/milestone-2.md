@@ -168,3 +168,27 @@ If any camera stays under 15 fps, set `live: medium`, restart, and repeat.
 - This goes against the section 1 ruling (stills in the grid, because four live streams is where a mid-range tablet runs out of memory and heats up). It's here so you can judge it on the Pixel Tablet. Watch the heartbeat `heapMB` and how warm the tablet gets. Keep it or remove it after.
 - Tested headless: the requests, the fallback to stills, closing streams for full view, and cleanup on leaving the screen. Playback itself is untested here (no H.264 in this Chromium).
 
+## 11. Config moved to a git-ignored folder (ratified by you, Oct 11)
+
+**contract** This changes the section 10 repo layout. Two problems on the real server prompted it:
+- `git pull` repeatedly clashed with the local edits in the tracked `config.yaml`.
+- Editing `config.yaml` with `vi` (which saves by swapping in a new file) left the running container reading the old file, because a single-file Docker mount stays on the file it opened.
+
+The change:
+- The real config is now `wall/config/config.yaml`. The folder is git-ignored, so a pull never touches it.
+- The repo keeps only `wall/config.example.yaml`, the template, with the corrected holidays calendar id.
+- docker-compose mounts the whole `./config` folder read-only at `/app/config`, so after an edit from any editor, `docker compose restart wall-server` sees the change. `CONFIG_PATH` is `/app/config/config.yaml`.
+- If the file is missing, the server stops with a message saying exactly what to copy where.
+- `config/` is also kept out of the Docker build context.
+
+**One-time move on the media server** (in `~/code/d-wall/wall`, before pulling this change):
+
+```sh
+mkdir -p config
+cp config.yaml config/config.yaml   # your real values, now outside git's reach
+cp config.yaml ~/config-backup.yaml # a spare copy
+git checkout -- config.yaml         # drop the local edits so the pull can remove the tracked file
+git pull
+docker compose up -d --force-recreate wall-server
+```
+

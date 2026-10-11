@@ -1,5 +1,7 @@
 # Wall display configuration (docs/spec.md section 10). No secrets here: they go in .env.
-# Placeholders in <angle brackets> are replaced in the real file on the media server.
+# This is the template. Copy it to config/config.yaml (git-ignored) and fill in the real values there:
+#   mkdir -p config && cp config.example.yaml config/config.yaml
+# Placeholders in <angle brackets> are replaced in the real file.
 server: { port: 9600 }
 timezone: America/Halifax
 weekStart: 0              # 0 = Sunday
