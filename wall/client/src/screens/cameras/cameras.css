@@ -56,7 +56,6 @@
   font-weight: 600;
 }
 .cam-age[data-stale] { background: var(--accent); color: var(--on-accent); font-weight: 700; }
-.cam-age--live { background: var(--live); color: var(--on-event); font-weight: 700; }
 .cam-name {
   position: absolute;
   left: var(--sp-14);

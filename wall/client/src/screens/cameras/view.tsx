@@ -71,7 +71,6 @@ export function Grid(p: {
             <button key={c.id} type="button" class="cam-tile" aria-label={`Open ${c.name} camera${age?.stale ? ', image is stale' : ''}`} onClick={() => p.open(i)}>
               {t && <Images t={t} />}
               {p.gridLive && <video ref={p.videoRef(c.id)} class="cam-img" data-front={live || undefined} muted autoplay playsInline />}
-              {live && <span class="cam-age cam-age--live">Live</span>}
               {age && <span class="cam-age" data-stale={age.stale || undefined}>{age.text}</span>}
               <span class="cam-name">{c.doorbell && <Bell />}{c.name}</span>
             </button>

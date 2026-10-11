@@ -164,7 +164,7 @@ If any camera stays under 15 fps, set `live: medium`, restart, and repeat.
 
 - Each tile plays its camera's **Low** stream over WebRTC (`POST /api/cameras/:id/webrtc?quality=low`, an addition to the section 10 route). The still stays underneath until the video plays, and remains as the fallback if a tile's stream fails.
 - Tapping a tile closes all tile streams before full view opens, so full view is still the only full-size stream. Closing full view reopens them.
-- A playing tile shows a red "Live" label instead of the age.
+- A playing tile shows no label (you asked for no "Live" pill, Oct 11). The age label returns if the tile falls back to stills.
 - This goes against the section 1 ruling (stills in the grid, because four live streams is where a mid-range tablet runs out of memory and heats up). It's here so you can judge it on the Pixel Tablet. Watch the heartbeat `heapMB` and how warm the tablet gets. Keep it or remove it after.
 - Tested headless: the requests, the fallback to stills, closing streams for full view, and cleanup on leaving the screen. Playback itself is untested here (no H.264 in this Chromium).
 
