@@ -16,7 +16,20 @@ export interface Config {
   doorbell?: { sound?: boolean }; // milestone 3: a ding on the tablet for a live ring
   kiosk: { host: string; port: number };
   photos: { source: string; path: string; intervalSec: number };
+  home?: HomeConfig; // milestone 6 (spec section 14)
   debug: { soak: boolean };
+}
+
+// Spec section 14. Tile types decide how a tile behaves; lock, garage and alarm need hold-then-confirm.
+export const HOME_TYPES = ['light', 'switch', 'fan', 'scene', 'climate', 'cover', 'garage', 'media_player', 'lock', 'alarm', 'sensor'] as const;
+export type HomeType = (typeof HOME_TYPES)[number];
+export const DEFAULT_ALLOWED_DOMAINS = ['light', 'switch', 'scene', 'climate', 'fan', 'cover', 'media_player', 'lock', 'alarm_control_panel'];
+export const MAX_TILES = 60;
+export interface HomeConfig {
+  hub: 'homeassistant';
+  url: string;
+  allowedDomains?: string[];
+  rooms: { name: string; devices: { id: string; name: string; type: HomeType }[] }[];
 }
 
 // What the client receives in GET /api/state. Never includes addresses, ids or secrets.
@@ -58,6 +71,21 @@ export function loadConfig(path = configPath): Config {
   if (stills !== undefined && stills !== 'protect' && stills !== 'go2rtc') fail('cameraOptions.stills must be protect or go2rtc');
   if (live !== undefined && live !== 'main' && live !== 'medium') fail('cameraOptions.live must be main or medium');
   if (raw.photos?.intervalSec !== undefined && !(Number(raw.photos.intervalSec) >= 5)) fail('photos.intervalSec must be 5 or more');
+  if (raw.home) {
+    const h = raw.home;
+    if (h.hub !== 'homeassistant') fail('home.hub must be homeassistant');
+    if (!Array.isArray(h.rooms)) fail('home.rooms must be a list');
+    let tiles = 0;
+    for (const room of h.rooms) {
+      if (!room?.name || !Array.isArray(room.devices)) fail('each home room needs a name and a devices list');
+      for (const d of room.devices) {
+        tiles++;
+        if (!/^[a-z_]+\.[a-z0-9_]+$/.test(d?.id ?? '')) fail(`home device id "${d?.id}" must be a Home Assistant entity id like light.kitchen`);
+        if (!HOME_TYPES.includes(d.type)) fail(`home device ${d.id}: type must be one of ${HOME_TYPES.join(', ')}`);
+      }
+    }
+    if (tiles > MAX_TILES) fail(`home has ${tiles} tiles; the limit is ${MAX_TILES}`);
+  }
   const grid = raw.cameraOptions?.grid;
   if (grid !== undefined && grid !== 'stills' && grid !== 'live') fail('cameraOptions.grid must be stills or live');
   return {

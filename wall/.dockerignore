@@ -3,3 +3,5 @@
 .env
 config
 photos
+homeassistant
+backups
