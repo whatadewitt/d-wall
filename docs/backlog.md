@@ -4,6 +4,8 @@ Requests for later. Nothing here is in v1 (spec sections 1-13) or in a milestone
 
 ## Spotify controller, playing on the Google Nest Hub (requested Oct 11)
 
+**Status:** built as milestone 7, started Oct 11. See `docs/reports/milestone-7.md`. The Hub-listing spike below is still open.
+
 A screen on the wall to control Spotify, with the sound coming out of the attached Google Home Hub rather than the tablet.
 
 **Likely shape**

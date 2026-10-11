@@ -30,6 +30,9 @@ cameraOptions: { stills: protect, live: main, grid: stills }
 # Doorbell (milestone 3). sound: a ding on the tablet when a ring arrives live, at full volume,
 # silent in quiet hours. Off unless set to true.
 doorbell: { sound: false }
+# Spotify controller (milestone 7). device: the speaker's name exactly as the Spotify app shows it
+# under Devices. Add spotify to screens: to put it in the rail.
+# spotify: { device: "Kitchen display" }
 # Soak harness (section 11). When on, the client mounts and unmounts every registered screen
 # every 60 s and the idle clock is paused; the server logs Fully Kiosk RAM every 5 minutes.
 debug: { soak: false }

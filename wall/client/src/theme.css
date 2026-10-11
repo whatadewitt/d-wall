@@ -111,6 +111,11 @@
   --popup-h: 41.25rem;      /* 660px */
   --bar-w: 13.75rem;        /* 220px countdown bar */
   --idle-edge: 2rem;        /* 32px idle clock and caption inset */
+  --spot-art: 28rem;        /* 448px Spotify album art (no mockup) */
+  --spot-gap: 2.5rem;       /* 40px between the art and the controls */
+  --spot-play: 5rem;        /* 80px play and pause button */
+  --spot-vol-w: 26rem;      /* 416px volume slider row */
+  --spot-sheet-w: 32rem;    /* 512px speaker list */
 
   /* Spacing steps used by the mockups, named by their px value at 800 px tall. */
   --sp-2: 0.125rem;  --sp-4: 0.25rem;   --sp-5: 0.3125rem; --sp-6: 0.375rem;

@@ -1,0 +1,149 @@
+/* Spotify screen. No mockup: it follows the cameras screen's header, controls and pills. Values come from theme.css. */
+.spot {
+  position: relative;
+  height: 100%;
+  box-sizing: border-box;
+  padding: var(--sp-20) var(--pad) var(--sp-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-14);
+}
+.spot-head { height: var(--head-h); flex: none; display: flex; align-items: center; justify-content: space-between; }
+.spot-head__title { display: flex; align-items: baseline; gap: var(--sp-16); min-width: 0; }
+.spot-title { margin: 0; font-family: var(--font-display); font-size: var(--fs-title); font-weight: 700; letter-spacing: -0.01em; }
+.spot-subtitle { font-size: var(--fs-subtitle); font-weight: 500; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.spot-clock { text-align: right; }
+.spot-clock__time { font-family: var(--font-display); font-size: var(--fs-clock); font-weight: 700; line-height: 1; letter-spacing: -0.01em; white-space: nowrap; }
+.spot-clock__date { margin-top: var(--sp-4); font-size: var(--fs-header-date); font-weight: 500; color: var(--text-2); white-space: nowrap; }
+
+.spot-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spot-gap);
+  padding: 0 var(--sp-16);
+}
+.spot-art {
+  flex: none;
+  width: var(--spot-art);
+  height: var(--spot-art);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background-color: var(--tile-bg);
+  background-image: repeating-linear-gradient(135deg, var(--tile-stripe) 0, var(--tile-stripe) 14px, var(--tile-bg) 14px, var(--tile-bg) 28px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.spot-art__img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.spot-art__note { width: 30%; height: 30%; color: var(--text-2); }
+
+.spot-side { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-28); }
+.spot-track { display: flex; flex-direction: column; gap: var(--sp-8); }
+.spot-track__title {
+  font-family: var(--font-display);
+  font-size: var(--fs-popup-title);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.spot-track__artist { font-size: var(--fs-subtitle); font-weight: 600; color: var(--text-2); }
+.spot-track__album { font-size: var(--fs-time); font-weight: 500; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.spot-progress { display: flex; flex-direction: column; gap: var(--sp-8); }
+.spot-progress__bar { height: var(--sp-6); border-radius: var(--radius-pill); background: var(--control-line); overflow: hidden; }
+.spot-progress__fill { height: 100%; border-radius: var(--radius-pill); background: var(--accent); }
+.spot-progress__times { display: flex; justify-content: space-between; font-size: var(--fs-time); font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+.spot-controls { display: flex; align-items: center; gap: var(--sp-22); }
+.spot-btn {
+  width: var(--button-lg);
+  height: var(--button-lg);
+  flex: none;
+  padding: 0;
+  border: 1px solid var(--control-line);
+  border-radius: 50%;
+  background: var(--control);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.spot-btn svg { width: 45%; height: 45%; }
+.spot-btn:disabled { opacity: 0.4; }
+.spot-btn--play { width: var(--spot-play); height: var(--spot-play); border: 0; background: var(--accent); color: var(--on-accent); }
+.spot-btn--close { width: var(--button); height: var(--button); background: var(--control-raised); }
+
+.spot-vol { display: flex; align-items: center; gap: var(--sp-14); max-width: var(--spot-vol-w); }
+.spot-vol__icon { width: 1.5rem; height: 1.5rem; flex: none; color: var(--text-2); }
+.spot-vol__range { flex: 1; min-width: 0; height: var(--button); margin: 0; accent-color: var(--accent); }
+.spot-vol__value { width: 2.5rem; text-align: right; font-size: var(--fs-time); font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+.spot-devices { display: flex; flex-wrap: wrap; gap: var(--sp-12); }
+.spot-pill {
+  height: var(--button);
+  padding: 0 var(--sp-20);
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius-pill);
+  background: var(--control);
+  font-size: var(--fs-button);
+  font-weight: 700;
+}
+.spot-pill--accent { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+
+.spot-note {
+  align-self: flex-start;
+  padding: var(--sp-8) var(--sp-14);
+  border-radius: var(--radius-chip);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--fs-time);
+  font-weight: 600;
+}
+
+/* Speaker list. */
+.spot-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.spot-sheet {
+  width: var(--spot-sheet-w);
+  max-height: 80%;
+  box-sizing: border-box;
+  padding: var(--sp-20) var(--pad) var(--pad);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-14);
+}
+.spot-sheet__head { display: flex; align-items: center; justify-content: space-between; }
+.spot-sheet__title { margin: 0; font-family: var(--font-display); font-size: var(--fs-day); font-weight: 700; }
+.spot-sheet__list { display: flex; flex-direction: column; gap: var(--sp-8); overflow-y: auto; }
+.spot-sheet__empty, .spot-sheet__hint { font-size: var(--fs-time); font-weight: 500; color: var(--text-2); line-height: 1.4; }
+.spot-device {
+  min-height: var(--button-lg);
+  padding: 0 var(--sp-16);
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius-event);
+  background: var(--control);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  text-align: left;
+}
+.spot-device[data-active] { border-color: var(--accent); background: var(--accent-soft); }
+.spot-device__name { flex: 1; min-width: 0; font-size: var(--fs-event); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.spot-device__type { font-size: var(--fs-time); font-weight: 500; color: var(--text-2); }
+.spot-device__check { width: 1.25rem; height: 1.25rem; color: var(--accent); }

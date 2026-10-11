@@ -15,6 +15,7 @@ export interface Config {
   cameraOptions?: { stills?: 'protect' | 'go2rtc'; live?: 'main' | 'medium'; grid?: 'stills' | 'live' }; // milestone 2 spikes
   doorbell?: { sound?: boolean }; // milestone 3: a ding on the tablet for a live ring
   kiosk: { host: string; port: number };
+  spotify?: { device?: string }; // the Spotify Connect speaker "Play on" sends music to (backlog)
   photos: { source: string; path: string; intervalSec: number };
   debug: { soak: boolean };
 }
@@ -60,6 +61,7 @@ export function loadConfig(path = configPath): Config {
   if (raw.photos?.intervalSec !== undefined && !(Number(raw.photos.intervalSec) >= 5)) fail('photos.intervalSec must be 5 or more');
   const grid = raw.cameraOptions?.grid;
   if (grid !== undefined && grid !== 'stills' && grid !== 'live') fail('cameraOptions.grid must be stills or live');
+  if (raw.spotify?.device !== undefined && typeof raw.spotify.device !== 'string') fail('spotify.device must be the speaker name, in quotes');
   return {
     ...(raw as Config),
     calendars: raw.calendars ?? [],
