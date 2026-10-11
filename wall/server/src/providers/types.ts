@@ -1,3 +1,4 @@
+import type { EventEmitter } from 'node:events';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import type { Config } from '../config.js';
 import type { Hub } from '../hub.js';
@@ -8,6 +9,8 @@ export interface ProviderDeps {
   hub: Hub;
   log: FastifyBaseLogger;
   kiosk: KioskController;
+  bus: EventEmitter; // 'client-connected', 'tablet-state' (state)
+  publishState(): void; // send the current snapshot as a `state` event
 }
 
 // Spec section 4, step 3: each data source is a provider with routes, topics, start() and stop().

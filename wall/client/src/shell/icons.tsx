@@ -1,5 +1,17 @@
 // Rail icons, drawn as in the mockups: 24-unit grid, 1.8 stroke, round caps.
 const paths: Record<string, preact.JSX.Element> = {
+  calendar: (
+    <>
+      <rect x="3.5" y="5" width="17" height="15" rx="3" />
+      <path d="M3.5 10h17M8 3.5v3M16 3.5v3" />
+    </>
+  ),
+  camera: (
+    <>
+      <rect x="3" y="6.5" width="12.5" height="11" rx="3" />
+      <path d="M15.5 10.5l5-2.5v8l-5-2.5" />
+    </>
+  ),
   clock: (
     <>
       <circle cx="12" cy="12" r="8.5" />

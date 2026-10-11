@@ -1,3 +1,4 @@
+import { EventEmitter } from 'node:events';
 import { resolve } from 'node:path';
 import Fastify, { LogController } from 'fastify';
 import fastifyStatic from '@fastify/static';
@@ -24,15 +25,19 @@ app.addHook('onError', async (req, _reply, err) => {
 
 const hub = new Hub();
 const kiosk = createKioskController(config.kiosk, process.env.FULLY_KIOSK_PASSWORD, log);
-const providers = createProviders({ config, hub, log, kiosk });
-
+const bus = new EventEmitter();
 const snapshot = () => ({ ...serverState, serverTime: new Date().toISOString(), config: clientConfig(config) });
+const publishState = () => hub.publish('state', snapshot());
+const providers = createProviders({ config, hub, log, kiosk, bus, publishState });
 
 app.get('/healthz', async () => ({ ok: true }));
 
 app.get('/api/state', async () => snapshot());
 
-app.get('/api/events', (req, reply) => hub.attach(req, reply));
+app.get('/api/events', (req, reply) => {
+  hub.attach(req, reply);
+  bus.emit('client-connected');
+});
 
 app.post<{ Body: { state: TabletState; via?: string } }>('/api/state', {
   schema: {
@@ -51,7 +56,8 @@ app.post<{ Body: { state: TabletState; via?: string } }>('/api/state', {
   serverState.tablet = { state, since: new Date().toISOString() };
   log.info({ tablet: state, via }, 'tablet state');
   if (state === 'off') void kiosk.screenOff();
-  hub.publish('state', snapshot());
+  bus.emit('tablet-state', state);
+  publishState();
   return { ok: true };
 });
 
@@ -77,6 +83,28 @@ app.post('/api/telemetry', {
           properties: { w: { type: 'number' }, h: { type: 'number' }, dpr: { type: 'number' }, screenW: { type: 'number' }, screenH: { type: 'number' } },
         },
         soakCycles: { type: ['integer', 'null'] },
+        // Live-view numbers from the cameras screen (milestone 2 stream spike).
+        video: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            camera: { type: 'string', maxLength: 40 },
+            stream: { type: 'string', maxLength: 10 },
+            connectMs: { type: ['number', 'null'] },
+            fps: { type: ['number', 'null'] },
+            avgFps: { type: ['number', 'null'] },
+            dropped: { type: ['number', 'null'] },
+            width: { type: ['number', 'null'] },
+            height: { type: ['number', 'null'] },
+            seconds: { type: 'number' },
+            fallback: { type: 'boolean' },
+          },
+        },
+        lastSwitch: {
+          type: ['object', 'null'],
+          additionalProperties: false,
+          properties: { screen: { type: 'string', maxLength: 40 }, ms: { type: 'number' } },
+        },
         signals: {
           type: 'array',
           maxItems: 50,
@@ -90,7 +118,9 @@ app.post('/api/telemetry', {
     },
   },
 }, async (req) => {
-  log.info({ telemetry: req.body }, 'heartbeat');
+  const body = req.body as { video?: unknown };
+  if (body.video) log.info({ video: body.video }, 'live view');
+  else log.info({ telemetry: req.body }, 'heartbeat');
   return { ok: true };
 });
 

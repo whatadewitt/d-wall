@@ -4,14 +4,16 @@ server: { port: 9600 }
 timezone: America/Halifax
 weekStart: 0              # 0 = Sunday
 clock: 12h
-# Rail order. Milestone 0 has only the template screen; calendar and cameras join in milestones 1 and 2.
-screens: [example-clock]
+# Rail order. The first is home.
+screens: [calendar, cameras]
 idle: { toIdleSec: 180, toOffMin: 20, quietHours: { from: "22:00", to: "06:30" } }
+# Calendar order sets the shape beside each title: circle, rounded square, diamond, triangle.
+# Optional per calendar: name: "Kid 1" (the legend label; defaults to the id).
 calendars:
   - { id: me, googleId: "<calendar id>", color: "#7DB3FF" }
   - { id: kid-1, googleId: "<calendar id>", color: "#FF9D8A" }   # one entry per child
   - { id: kid-2, googleId: "<calendar id>", color: "#86D9AA" }
-  - { id: holidays-ca, googleId: "en.canadian#holiday@group.calendar.google.com", color: "#C4B5FD" }   # Google's public holiday calendar
+  - { id: holidays-ca, googleId: "en.canadian#holiday@group.v.calendar.google.com", color: "#C4B5FD" }   # Google's public holiday calendar
 cameras:
   - { id: front-door, name: Front door, rtsps: "<rtsps url>", doorbell: true }
   - { id: camera-2, name: "<name>", rtsps: "<rtsps url>" }
@@ -19,6 +21,9 @@ cameras:
   - { id: camera-4, name: "<name>", rtsps: "<rtsps url>" }
 kiosk: { host: "<tablet ip>", port: 2323 }
 photos: { source: folder, path: /data/photos, intervalSec: 30 }
+# Set by the milestone 2 spikes (spec section 6). stills: protect or go2rtc. live: main or medium.
+# grid: stills (spec) or live (experiment: low-res live video in each tile).
+cameraOptions: { stills: protect, live: main, grid: stills }
 # Soak harness (section 11). When on, the client mounts and unmounts every registered screen
 # every 60 s and the idle clock is paused; the server logs Fully Kiosk RAM every 5 minutes.
 debug: { soak: false }

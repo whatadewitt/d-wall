@@ -103,7 +103,9 @@ $LOGS | grep '"heartbeat"' | tail -1 | jq .telemetry.viewport
 
 | innerWidth | innerHeight | devicePixelRatio | screen.width × height | Expected |
 | --- | --- | --- | --- | --- |
-| | | | | about 1280 × 800 at DPR 1.5 |
+| 1280 | 799 | 2 | not recorded | about 1280 × 800 |
+
+**Result (Oct 11):** measured on the real tablet, which is a **Google Pixel Tablet** (2560 × 1600), not the Tab A11+. The viewport matches the mockups' 1280 × 800 to within one pixel, so the rem base and the spacing stand as designed. No redesign is needed.
 
 If the height isn't about 800, the rem base (J10) still scales, but the mockups' px sizes would need rechecking.
 

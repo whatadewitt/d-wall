@@ -10,8 +10,9 @@ export interface Config {
   clock: '12h' | '24h';
   screens: string[];
   idle: { toIdleSec: number; toOffMin: number; quietHours: { from: string; to: string } };
-  calendars: { id: string; googleId: string; color: string }[];
+  calendars: { id: string; name?: string; googleId: string; color: string }[];
   cameras: { id: string; name: string; rtsps: string; doorbell?: boolean }[];
+  cameraOptions?: { stills?: 'protect' | 'go2rtc'; live?: 'main' | 'medium'; grid?: 'stills' | 'live' }; // milestone 2 spikes
   kiosk: { host: string; port: number };
   photos: { source: string; path: string; intervalSec: number };
   debug: { soak: boolean };
@@ -25,7 +26,8 @@ export interface ClientConfig {
   clock: '12h' | '24h';
   screens: string[];
   idle: Config['idle'];
-  calendars: { id: string; color: string }[];
+  calendars: { id: string; name: string; color: string }[];
+  cameraGrid: 'stills' | 'live'; // experiment: live low-res video in the grid tiles
   soak: boolean;
 }
 
@@ -41,6 +43,12 @@ export function loadConfig(path = configPath): Config {
   if (!(Number(raw.idle?.toIdleSec) > 0) || !(Number(raw.idle?.toOffMin) > 0)) fail('idle.toIdleSec and idle.toOffMin must be positive');
   if (raw.clock !== '12h' && raw.clock !== '24h') fail('clock must be 12h or 24h');
   if (typeof raw.timezone !== 'string') fail('timezone is required');
+  const stills = raw.cameraOptions?.stills;
+  const live = raw.cameraOptions?.live;
+  if (stills !== undefined && stills !== 'protect' && stills !== 'go2rtc') fail('cameraOptions.stills must be protect or go2rtc');
+  if (live !== undefined && live !== 'main' && live !== 'medium') fail('cameraOptions.live must be main or medium');
+  const grid = raw.cameraOptions?.grid;
+  if (grid !== undefined && grid !== 'stills' && grid !== 'live') fail('cameraOptions.grid must be stills or live');
   return {
     ...(raw as Config),
     calendars: raw.calendars ?? [],
@@ -57,7 +65,8 @@ export function clientConfig(c: Config): ClientConfig {
     clock: c.clock,
     screens: c.screens,
     idle: c.idle,
-    calendars: c.calendars.map(({ id, color }) => ({ id, color })),
+    calendars: c.calendars.map(({ id, name, color }) => ({ id, name: name ?? id, color })),
+    cameraGrid: c.cameraOptions?.grid ?? 'stills',
     soak: c.debug.soak,
   };
 }

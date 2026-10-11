@@ -5,7 +5,8 @@ export interface ClientConfig {
   clock: '12h' | '24h';
   screens: string[];
   idle: { toIdleSec: number; toOffMin: number; quietHours: { from: string; to: string } };
-  calendars: { id: string; color: string }[];
+  calendars: { id: string; name: string; color: string }[];
+  cameraGrid: 'stills' | 'live';
   soak: boolean;
 }
 

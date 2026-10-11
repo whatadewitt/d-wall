@@ -1,4 +1,4 @@
-# Wall display (docs/spec.md section 10). go2rtc joins in milestone 2.
+# Wall display (docs/spec.md section 10): wall-server and the go2rtc stream relay.
 services:
   wall-server:
     build: .
@@ -7,11 +7,16 @@ services:
     env_file: .env
     environment:
       CONFIG_PATH: /app/config.yaml
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google-service-account.json
+      GO2RTC_URL: http://go2rtc:1984
+    depends_on: [go2rtc]
     ports:
       # LAN interface only (section 10, security rules).
       - "${WALL_BIND_ADDR:?set WALL_BIND_ADDR in .env to the media server's LAN address}:9600:9600"
     volumes:
       - ./config.yaml:/app/config.yaml:ro
+      # The Google service account key stays outside the repo (section 10, secrets).
+      - "${GOOGLE_SA_KEY_FILE:?set GOOGLE_SA_KEY_FILE in .env to the service account key file}:/run/secrets/google-service-account.json:ro"
     mem_limit: 512m
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:9600/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
@@ -22,3 +27,21 @@ services:
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "10" }
+
+  go2rtc:
+    image: alexxit/go2rtc:1.9.9
+    restart: unless-stopped
+    init: true
+    # The config is inline, so go2rtc has no file to write camera addresses into. wall-server adds the
+    # streams at runtime. The API (1984) stays on the Docker network; only WebRTC media is published.
+    entrypoint: ["go2rtc"]
+    command:
+      - -config
+      - '{"api":{"listen":":1984"},"rtsp":{"listen":""},"webrtc":{"listen":":8555","candidates":["${WALL_BIND_ADDR}:8555"]},"log":{"level":"info"}}'
+    ports:
+      - "${WALL_BIND_ADDR}:8555:8555/tcp"
+      - "${WALL_BIND_ADDR}:8555:8555/udp"
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
