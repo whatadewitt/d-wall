@@ -31,10 +31,17 @@ export interface ClientConfig {
   soak: boolean;
 }
 
-export const configPath = process.env.CONFIG_PATH ?? resolve(process.cwd(), '../config.yaml');
+// The real file lives in wall/config/ (git-ignored); the repo has only config.example.yaml.
+export const configPath = process.env.CONFIG_PATH ?? resolve(process.cwd(), '../config/config.yaml');
 
 export function loadConfig(path = configPath): Config {
-  const raw = parse(readFileSync(path, 'utf8')) as Partial<Config>;
+  let text: string;
+  try {
+    text = readFileSync(path, 'utf8');
+  } catch {
+    throw new Error(`no config at ${path}: copy wall/config.example.yaml to wall/config/config.yaml and fill it in`);
+  }
+  const raw = parse(text) as Partial<Config>;
   const fail = (what: string): never => {
     throw new Error(`config.yaml: ${what}`);
   };

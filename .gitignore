@@ -2,3 +2,5 @@ node_modules/
 dist/
 .env
 *.log
+# The real wall config (addresses, calendar ids, stream tokens). The repo keeps wall/config.example.yaml.
+wall/config/
