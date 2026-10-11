@@ -18,6 +18,8 @@ services:
       - ./config:/app/config:ro
       # The Google service account key stays outside the repo (section 10, secrets).
       - "${GOOGLE_SA_KEY_FILE:?set GOOGLE_SA_KEY_FILE in .env to the service account key file}:/run/secrets/google-service-account.json:ro"
+      # Idle-screen photos (section 8), read-only. Fill it with the art seed script (milestone 4 report).
+      - "${PHOTOS_DIR:-./photos}:/data/photos:ro"
     mem_limit: 512m
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:9600/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]

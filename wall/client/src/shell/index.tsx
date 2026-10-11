@@ -3,16 +3,22 @@ import { registry } from '../screens/registry';
 import type { Screen } from '../screens/types';
 import { getState, post } from './api';
 import type { ServerSnapshot } from './config';
-import { connect, emit } from './events';
+import { createDoorbell } from './doorbell';
+import { connect, emit, subscribe } from './events';
 import { bindFully } from './fully';
 import { ScreenHost } from './host';
 import { createIdleClock, type IdleState } from './idle';
+import { quietChecker } from './quiet';
 import { Rail } from './rail';
 import { signal } from './signals';
 import { startSoak } from './soak';
 import { startHeartbeat } from './telemetry';
 
 const RETRY_SEC = [1, 2, 5, 10, 30];
+
+// The doorbell popup is not a rail screen; it mounts in the overlay layer (spec sections 4 and 7).
+const IDLE_SCREEN = 'photos'; // mounted while Idle, full screen (section 8)
+const doorbellOverlay: Screen = { id: 'doorbell', title: 'Doorbell', icon: 'bell', load: () => import('../overlays/doorbell') };
 
 async function firstState(app: HTMLElement): Promise<ServerSnapshot> {
   for (let attempt = 0; ; attempt++) {
@@ -45,9 +51,10 @@ export async function boot(app: HTMLElement): Promise<void> {
   });
   const home: Screen = railScreens[0] ?? registry[0];
 
-  const deps = { config, go, touch: () => idle.touch() };
-  const main = new ScreenHost('main', stage, deps);
-  const overlay = new ScreenHost('overlay', overlayLayer, deps);
+  const main = new ScreenHost('main', stage, { config, go, touch: () => idle.touch() });
+  // A touch on the popup's panel also keeps the popup open (section 7).
+  const overlay = new ScreenHost('overlay', overlayLayer, { config, go, touch: () => (idle.touch(), doorbell.touched()) });
+  let target: string | null = null; // the screen being shown on the stage, set before its code loads
 
   const drawRail = () => render(<Rail screens={railScreens} active={main.currentId} onSelect={go} />, rail);
 
@@ -57,8 +64,11 @@ export async function boot(app: HTMLElement): Promise<void> {
   function go(id: string): void {
     const s = byId.get(id);
     if (!s) return console.warn(`go(): no screen "${id}"`);
+    // Any switch closes the popup. Going to the screen already beneath it only closes it, so that
+    // screen keeps its place.
+    if (doorbell.close() && main.currentId === id) return drawRail();
     const started = performance.now();
-    overlay.unmount();
+    target = id;
     void main.show(s).then(() => {
       drawRail();
       requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -69,18 +79,23 @@ export async function boot(app: HTMLElement): Promise<void> {
   }
 
   // Idle clock. In soak mode it is paused so the loop runs all night with the screen on.
+  const quiet = quietChecker(config);
   const idle = createIdleClock({
     idle: config.idle,
     paused: config.soak,
+    quiet: () => quiet(),
     onChange(state: IdleState, via: string) {
       document.body.dataset.state = state;
       post('/api/state', { state, via });
       if (state === 'off') {
-        overlay.unmount();
+        doorbell.close();
         main.unmount(); // free memory before the server turns the screen off
+        target = null;
         drawRail();
-      } else if (state === 'active' && !main.currentId) {
-        go(home.id); // wake from Off lands on home
+      } else if (state === 'idle') {
+        if (byId.has(IDLE_SCREEN)) go(IDLE_SCREEN); // photos replace the screen; the rail hides
+      } else if (!main.currentId || (main.currentId ?? target) === IDLE_SCREEN) {
+        go(home.id); // waking from Idle or Off lands on home
       }
     },
   });
@@ -129,9 +144,40 @@ export async function boot(app: HTMLElement): Promise<void> {
   });
   if (!hasFully) signal('fully:unavailable');
 
+  // The doorbell popup. A ring wakes the tablet and lands on home beneath the popup when it was
+  // asleep; closing it restores the screen beneath and restarts the idle clock.
+  let skew = 0;
+  const doorbell = createDoorbell({
+    host: overlay,
+    screen: doorbellOverlay,
+    sound: config.doorbellSound,
+    quiet,
+    tabletState: () => idle.state,
+    wake() {
+      if (idle.state !== 'active') idle.wake('ring');
+      if (!main.currentId && !target) go(home.id);
+    },
+    beneath: () => main.currentId ?? target,
+    hold: (on) => idle.hold(on),
+    skew: () => skew,
+  });
+  subscribe('doorbell.ring', (msg) => doorbell.ring(msg));
+  subscribe('state', (msg) => doorbell.state(msg));
+
   // The event stream. Every (re)connect refetches /api/state and hands it to `state` subscribers.
+  // The fetch also measures the server's clock against this page's, for the ring timings.
+  // The quickest round trip gives the best estimate, so a slow one replaces it only once it is an hour old.
+  let skewSample = { rtt: Infinity, at: 0 };
   connect(() => {
-    getState().then((s) => emit('state', s), () => {});
+    const sent = Date.now();
+    getState().then((s) => {
+      const now = Date.now();
+      if (now - sent <= skewSample.rtt || now - skewSample.at > 3_600_000) {
+        skew = Date.parse(s.serverTime) - (sent + now) / 2;
+        skewSample = { rtt: now - sent, at: now };
+      }
+      emit('state', s);
+    }, () => {});
   });
 
   const soakCycles = config.soak ? startSoak(main, registry) : null;

@@ -72,7 +72,7 @@ function jpegWidth(b: Buffer): number | null {
 
 const usable = (url: string) => /^rtsps?:\/\//.test(url) && !url.includes('<');
 
-export function camerasProvider({ config, log }: ProviderDeps): Provider {
+export function camerasProvider({ bus, config, log }: ProviderDeps): Provider {
   const options = { stills: config.cameraOptions?.stills ?? 'protect', live: config.cameraOptions?.live ?? 'main' };
   const go2rtc = new Go2rtc(process.env.GO2RTC_URL ?? 'http://go2rtc:1984');
   const cams: Cam[] = config.cameras.filter((c) => usable(c.rtsps)).map((c) => ({
@@ -268,6 +268,14 @@ export function camerasProvider({ config, log }: ProviderDeps): Provider {
         await sync();
         timers.push(setTimeout(lookupLoop, ok ? LOOKUP_REFRESH_MS : LOOKUP_RETRY_MS));
       };
+      // A ring: grab a fresh doorbell still at once (the tablet may have been Off, with no warm
+      // stills), and keep it on the 1 s refresh until the popup's own requests take over.
+      bus.on('doorbell-ring', (id: string) => {
+        const cam = byId.get(id);
+        if (!cam) return;
+        cam.fastUntil = Date.now() + LEASE_MS;
+        void refresh(cam);
+      });
       await lookupLoop();
       timers.push(setInterval(() => void sync(), 60_000)); // re-adds streams if go2rtc restarts
       timers.push(setInterval(tick, 250));

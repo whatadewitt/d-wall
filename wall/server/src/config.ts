@@ -13,6 +13,7 @@ export interface Config {
   calendars: { id: string; name?: string; googleId: string; color: string }[];
   cameras: { id: string; name: string; rtsps: string; doorbell?: boolean }[];
   cameraOptions?: { stills?: 'protect' | 'go2rtc'; live?: 'main' | 'medium'; grid?: 'stills' | 'live' }; // milestone 2 spikes
+  doorbell?: { sound?: boolean }; // milestone 3: a ding on the tablet for a live ring
   kiosk: { host: string; port: number };
   photos: { source: string; path: string; intervalSec: number };
   debug: { soak: boolean };
@@ -28,6 +29,8 @@ export interface ClientConfig {
   idle: Config['idle'];
   calendars: { id: string; name: string; color: string }[];
   cameraGrid: 'stills' | 'live'; // experiment: live low-res video in the grid tiles
+  doorbellSound: boolean;
+  photosIntervalSec: number;
   soak: boolean;
 }
 
@@ -54,6 +57,7 @@ export function loadConfig(path = configPath): Config {
   const live = raw.cameraOptions?.live;
   if (stills !== undefined && stills !== 'protect' && stills !== 'go2rtc') fail('cameraOptions.stills must be protect or go2rtc');
   if (live !== undefined && live !== 'main' && live !== 'medium') fail('cameraOptions.live must be main or medium');
+  if (raw.photos?.intervalSec !== undefined && !(Number(raw.photos.intervalSec) >= 5)) fail('photos.intervalSec must be 5 or more');
   const grid = raw.cameraOptions?.grid;
   if (grid !== undefined && grid !== 'stills' && grid !== 'live') fail('cameraOptions.grid must be stills or live');
   return {
@@ -74,6 +78,8 @@ export function clientConfig(c: Config): ClientConfig {
     idle: c.idle,
     calendars: c.calendars.map(({ id, name, color }) => ({ id, name: name ?? id, color })),
     cameraGrid: c.cameraOptions?.grid ?? 'stills',
+    doorbellSound: c.doorbell?.sound === true,
+    photosIntervalSec: c.photos?.intervalSec ?? 30,
     soak: c.debug.soak,
   };
 }

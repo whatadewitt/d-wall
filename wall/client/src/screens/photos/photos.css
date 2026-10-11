@@ -1,0 +1,35 @@
+/* Photos (Idle), from the "Idle, art" mockup. Values come from theme.css. */
+.photos { position: absolute; inset: 0; background: var(--video-bg); overflow: hidden; }
+.photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* portrait: centred on black */
+  opacity: 0;
+  transition: opacity 1500ms ease-in-out;
+}
+.photo[data-fill] { object-fit: cover; }
+.photo[data-front] { opacity: 1; }
+.photos-caption, .photos-clock {
+  position: absolute;
+  bottom: var(--idle-edge);
+  background: var(--idle-label-bg);
+  color: var(--text);
+}
+.photos-caption {
+  left: var(--idle-edge);
+  max-width: 40%;
+  padding: var(--sp-14) var(--sp-22);
+  border-radius: var(--radius-idle-caption);
+}
+.photos-caption__title { font-size: var(--fs-caption); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.photos-caption__credit { margin-top: var(--sp-2); font-size: var(--fs-header-date); font-weight: 500; color: var(--idle-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.photos-clock {
+  right: var(--idle-edge);
+  padding: var(--sp-16) var(--sp-26);
+  border-radius: var(--radius-idle-clock);
+  text-align: right;
+}
+.photos-clock__time { font-family: var(--font-display); font-size: var(--fs-idle-clock); font-weight: 700; line-height: 1; letter-spacing: -0.015em; white-space: nowrap; }
+.photos-clock__date { margin-top: var(--sp-6); font-size: var(--fs-idle-date); font-weight: 500; color: var(--idle-text-2); white-space: nowrap; }

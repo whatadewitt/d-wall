@@ -3,7 +3,13 @@
 // against the installed version; see docs/reports/milestone-0.md.
 declare global {
   interface Window {
-    fully?: { bind(event: string, code: string): void };
+    fully?: {
+      bind(event: string, code: string): void;
+      // Used for the doorbell ding (milestone 3). Android stream 3 is media.
+      playSound?(url: string, loop: boolean, stream?: number): void;
+      setAudioVolume?(volume: number, stream: number): void;
+      getAudioVolume?(stream: number): number;
+    };
     __wallFully?: (event: string) => void;
   }
 }

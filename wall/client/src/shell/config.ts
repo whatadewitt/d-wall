@@ -7,13 +7,15 @@ export interface ClientConfig {
   idle: { toIdleSec: number; toOffMin: number; quietHours: { from: string; to: string } };
   calendars: { id: string; name: string; color: string }[];
   cameraGrid: 'stills' | 'live';
+  doorbellSound: boolean;
+  photosIntervalSec: number;
   soak: boolean;
 }
 
 export interface ServerSnapshot {
   serverTime: string;
   tablet: { state: string | null; since: string | null };
-  doorbell: { activeUntil: string | null };
+  doorbell: { activeUntil: string | null; at: string | null; cameraId: string | null };
   calendar: { lastSuccess: string | null; stale: boolean };
   config: ClientConfig;
 }
