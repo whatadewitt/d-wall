@@ -112,3 +112,10 @@ Also check:
 - With the screen off, whether the ding plays **before** the screen comes on, with it, or not at all. That says whether the page's event stream stays connected while the screen is off.
 - Live video in the popup within a few seconds (`liveMs`), and the LIVE pill.
 - After the popup closes, the screen stays on for the full idle time (3 minutes).
+
+## 7. On the real setup (Oct 11)
+
+- **The doorbell works end to end on the real server and tablet.** The webhook was accepted, the tablet woke, the popup showed, and the ding played.
+- **Ratified by you:** the contract additions D1 (ding behind `doorbell.sound`, now `true` on your server), D3 (`X-Doorbell-Secret` header) and D6 (doorbell timings in telemetry).
+- **To revisit:** the ding's volume (currently full media volume, per your Oct 11 decision).
+- **Still to measure:** the section 7 timings from a real ring with the screen off (`doorbell popup` lines in the log).
