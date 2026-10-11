@@ -135,6 +135,11 @@ export function camerasProvider({ config, log }: ProviderDeps): Provider {
       if (low?.rtspAlias) cam.sources.low = toGo2rtc(withAlias(conf.rtsps, low.rtspAlias));
       // Addresses carry Protect's stream tokens: log only which qualities exist.
       log.info({ camera: cam.id, medium: Boolean(medium), low: Boolean(low) }, 'cameras: found in Protect');
+      if (!medium || !low) {
+        // What Protect reports for this camera's channels, to see why a quality is missing. No aliases.
+        const channels = p.channels.map((ch) => ({ id: ch.id, name: ch.name, rtsps: ch.isRtspEnabled ?? null, alias: Boolean(ch.rtspAlias) }));
+        log.info({ camera: cam.id, channels }, 'cameras: Protect channels');
+      }
     }
     return true;
   }
@@ -236,8 +241,9 @@ export function camerasProvider({ config, log }: ProviderDeps): Provider {
       }, async (req, reply) => {
         const cam = byId.get(req.params.id);
         if (!cam) return reply.code(404).send({ error: 'unknown camera' });
-        const quality: Quality =
-          req.query.quality === 'low' && cam.ready.has('low') ? 'low' : options.live === 'medium' && cam.ready.has('medium') ? 'medium' : 'main';
+        // Grid tiles ask for low; without it, medium is still far lighter than main for four tiles.
+        const tileQuality: Quality | null = req.query.quality === 'low' ? (cam.ready.has('low') ? 'low' : cam.ready.has('medium') ? 'medium' : 'main') : null;
+        const quality: Quality = tileQuality ?? (options.live === 'medium' && cam.ready.has('medium') ? 'medium' : 'main');
         try {
           const sdp = await go2rtc.webrtc(streamName(cam, quality), req.body.sdp);
           return { type: 'answer', sdp, stream: quality };
