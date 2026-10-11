@@ -126,7 +126,8 @@ export const mount: Mount = (root, ctx) => {
               else hint = { text: 'Press and hold to unlock, open or disarm', until: Date.now() + 3000 };
               return draw();
             }
-            if (d.type === 'light' && held >= HOLD_LIGHT_MS) {
+            // Only dimmable lights (the light domain) get the slider; a Kasa on/off switch shown as a light just toggles.
+            if (d.type === 'light' && d.id.startsWith('light.') && held >= HOLD_LIGHT_MS) {
               sheet = { kind: 'brightness', device: d, value: display(d).brightness ?? 100 };
               return draw();
             }

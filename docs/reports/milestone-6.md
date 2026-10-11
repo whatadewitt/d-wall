@@ -67,6 +67,7 @@ Decided by you, Oct 11, before the build:
 | H9 | There's no mockup for this screen. It follows the other screens: the same header, pills, cards and accent. | |
 | H10 | "Back to the calendar after 60 s" goes to the first rail screen, as in J12 and L12. | |
 | H11 | Media players only toggle on and off; there are no transport controls. | Section 14 lists only on, off and toggle. |
+| H12 | A `switch.*` entity can use `type: light` (bulb icon, on/off). The hold-for-brightness slider appears only for `light.*` entities. | Your lights are Kasa. Kasa on/off wall switches appear in Home Assistant as `switch.*`, and dimmers as `light.*`. |
 
 ## 4. Budget and gate
 
