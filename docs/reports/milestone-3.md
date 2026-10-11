@@ -118,4 +118,6 @@ Also check:
 - **The doorbell works end to end on the real server and tablet.** The webhook was accepted, the tablet woke, the popup showed, and the ding played.
 - **Ratified by you:** the contract additions D1 (ding behind `doorbell.sound`, now `true` on your server), D3 (`X-Doorbell-Secret` header) and D6 (doorbell timings in telemetry).
 - **To revisit:** the ding's volume (currently full media volume, per your Oct 11 decision).
-- **Still to measure:** the section 7 timings from a real ring with the screen off (`doorbell popup` lines in the log).
+- **Measured, screen on (Oct 11):** a real ring over the calendar gave `popupMs` **257** (target 1,500 ✓). Ding played through Fully. Live video replaced the still at `liveMs` **5,710**: the popup works, but live video is slow to start (see below).
+- **Still to measure:** a ring with the screen off (target 3,000 ms).
+- **Slow live video (5.7 s):** most likely go2rtc opening the doorbell's RTSPS stream from cold and waiting for its next keyframe. Proposed fix, not built: keep the doorbell's stream connected in go2rtc so the popup joins a running stream. Full view's tap-to-live (milestone 2 target 3 s) probably has the same cost; its `connectMs` will show it.
