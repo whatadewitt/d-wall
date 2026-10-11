@@ -30,21 +30,6 @@ cameraOptions: { stills: protect, live: main, grid: stills }
 # Doorbell (milestone 3). sound: a ding on the tablet when a ring arrives live, at full volume,
 # silent in quiet hours. Off unless set to true.
 doorbell: { sound: false }
-# Home screen (spec section 14, milestone 6). url: Home Assistant on the media server's LAN address.
-# Device ids are Home Assistant entity ids. type: light, switch, fan, scene, climate, cover, garage,
-# media_player, lock, alarm or sensor. lock, garage and alarm need press-and-hold, then Confirm.
-# Commands are accepted only for these pinned devices, in allowedDomains (default: the section 14 list).
-# home:
-#   hub: homeassistant
-#   url: "http://<media server LAN address>:8123"
-#   rooms:
-#     - name: Kitchen
-#       devices:
-#         - { id: light.kitchen_main, name: Main, type: light }
-#         - { id: switch.coffee, name: Coffee, type: switch }
-#     - name: Scenes
-#       devices:
-#         - { id: scene.movie_night, name: Movie night, type: scene }
 # Soak harness (section 11). When on, the client mounts and unmounts every registered screen
 # every 60 s and the idle clock is paused; the server logs Fully Kiosk RAM every 5 minutes.
 debug: { soak: false }

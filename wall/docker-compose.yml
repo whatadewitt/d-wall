@@ -1,4 +1,4 @@
-# Wall display (docs/spec.md section 10): wall-server, the go2rtc stream relay, and Home Assistant (section 14).
+# Wall display (docs/spec.md section 10): wall-server and the go2rtc stream relay.
 services:
   wall-server:
     build: .
@@ -45,23 +45,6 @@ services:
       - "${WALL_BIND_ADDR}:8555:8555/tcp"
       - "${WALL_BIND_ADDR}:8555:8555/udp"
     mem_limit: 512m
-    logging:
-      driver: json-file
-      options: { max-size: "10m", max-file: "5" }
-
-  # Home Assistant, the device hub for the home screen (spec section 14). Host networking lets it find
-  # devices on the LAN (mDNS, Matter, casting); its web page is on port 8123 of the media server.
-  # Its config folder is git-ignored. Updated nightly by scripts/nightly-update.sh, not automatically.
-  homeassistant:
-    image: ghcr.io/home-assistant/home-assistant:stable
-    restart: unless-stopped
-    network_mode: host
-    environment:
-      TZ: ${TZ:-America/Halifax}
-    volumes:
-      - "${HA_CONFIG_DIR:-./homeassistant}:/config"
-      - /etc/localtime:/etc/localtime:ro
-    mem_limit: 1g
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "5" }

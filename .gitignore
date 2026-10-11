@@ -6,6 +6,3 @@ dist/
 wall/config/
 # Idle-screen photos, when kept in the default wall/photos.
 wall/photos/
-# Home Assistant's config and the nightly backups.
-wall/homeassistant/
-wall/backups/
