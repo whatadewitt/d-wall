@@ -22,6 +22,7 @@ cameras:
   - { id: camera-3, name: "<name>", rtsps: "<rtsps url>" }
   - { id: camera-4, name: "<name>", rtsps: "<rtsps url>" }
 kiosk: { host: "<tablet ip>", port: 2323 }
+# Idle photos (section 8). path is inside the container; docker-compose mounts PHOTOS_DIR there.
 photos: { source: folder, path: /data/photos, intervalSec: 30 }
 # Set by the milestone 2 spikes (spec section 6). stills: protect or go2rtc. live: main or medium.
 # grid: stills (spec) or live (experiment: low-res live video in each tile).

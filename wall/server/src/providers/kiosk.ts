@@ -1,4 +1,5 @@
 import type { Config } from '../config.js';
+import { inQuietHours } from '../time.js';
 import type { Provider, ProviderDeps } from './types.js';
 
 // Kiosk controller (spec section 10): a thin wrapper over Fully Kiosk's Remote Admin REST API.
@@ -79,9 +80,25 @@ export function createKioskController(
   };
 }
 
+const QUIET_CHECK_MS = 30_000;
+
+// Quiet hours (spec section 8): Fully's motion detection goes off at the start and back on at the
+// end, so someone walking past at night does not light up the room. A ring and a touch still wake it.
 // During a soak, log whatever RAM figures Fully Kiosk reports, every 5 minutes (spec section 11).
 export function kioskProvider({ config, kiosk, log }: ProviderDeps): Provider {
   let timer: NodeJS.Timeout | undefined;
+  let quietTimer: NodeJS.Timeout | undefined;
+  let motionOn: boolean | null = null; // what Fully was last told; null until a call succeeds
+
+  // Sets motion detection to match the clock. A failed call is retried on the next check.
+  async function applyQuietHours(): Promise<void> {
+    const want = !inQuietHours(config.idle.quietHours, config.timezone);
+    if (want === motionOn) return;
+    const res = await kiosk.setBooleanSetting(MOTION_DETECTION_KEY, want);
+    if (!res.ok) return;
+    motionOn = want;
+    log.info({ kiosk: 'quiet hours', motionDetection: want }, want ? 'kiosk: quiet hours over, motion detection on' : 'kiosk: quiet hours, motion detection off');
+  }
 
   async function logRam(): Promise<void> {
     const res = await kiosk.deviceInfo();
@@ -97,12 +114,16 @@ export function kioskProvider({ config, kiosk, log }: ProviderDeps): Provider {
     topics: [],
     routes() {},
     start() {
-      if (!config.debug.soak || !kiosk.enabled) return;
+      if (!kiosk.enabled) return;
+      void applyQuietHours(); // at start-up too: the server may have been down at a boundary
+      quietTimer = setInterval(() => void applyQuietHours(), QUIET_CHECK_MS);
+      if (!config.debug.soak) return;
       void logRam();
       timer = setInterval(() => void logRam(), 5 * 60_000);
     },
     stop() {
       clearInterval(timer);
+      clearInterval(quietTimer);
     },
   };
 }

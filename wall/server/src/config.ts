@@ -30,6 +30,7 @@ export interface ClientConfig {
   calendars: { id: string; name: string; color: string }[];
   cameraGrid: 'stills' | 'live'; // experiment: live low-res video in the grid tiles
   doorbellSound: boolean;
+  photosIntervalSec: number;
   soak: boolean;
 }
 
@@ -56,6 +57,7 @@ export function loadConfig(path = configPath): Config {
   const live = raw.cameraOptions?.live;
   if (stills !== undefined && stills !== 'protect' && stills !== 'go2rtc') fail('cameraOptions.stills must be protect or go2rtc');
   if (live !== undefined && live !== 'main' && live !== 'medium') fail('cameraOptions.live must be main or medium');
+  if (raw.photos?.intervalSec !== undefined && !(Number(raw.photos.intervalSec) >= 5)) fail('photos.intervalSec must be 5 or more');
   const grid = raw.cameraOptions?.grid;
   if (grid !== undefined && grid !== 'stills' && grid !== 'live') fail('cameraOptions.grid must be stills or live');
   return {
@@ -77,6 +79,7 @@ export function clientConfig(c: Config): ClientConfig {
     calendars: c.calendars.map(({ id, name, color }) => ({ id, name: name ?? id, color })),
     cameraGrid: c.cameraOptions?.grid ?? 'stills',
     doorbellSound: c.doorbell?.sound === true,
+    photosIntervalSec: c.photos?.intervalSec ?? 30,
     soak: c.debug.soak,
   };
 }

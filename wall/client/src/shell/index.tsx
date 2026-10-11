@@ -17,6 +17,7 @@ import { startHeartbeat } from './telemetry';
 const RETRY_SEC = [1, 2, 5, 10, 30];
 
 // The doorbell popup is not a rail screen; it mounts in the overlay layer (spec sections 4 and 7).
+const IDLE_SCREEN = 'photos'; // mounted while Idle, full screen (section 8)
 const doorbellOverlay: Screen = { id: 'doorbell', title: 'Doorbell', icon: 'bell', load: () => import('../overlays/doorbell') };
 
 async function firstState(app: HTMLElement): Promise<ServerSnapshot> {
@@ -78,9 +79,11 @@ export async function boot(app: HTMLElement): Promise<void> {
   }
 
   // Idle clock. In soak mode it is paused so the loop runs all night with the screen on.
+  const quiet = quietChecker(config);
   const idle = createIdleClock({
     idle: config.idle,
     paused: config.soak,
+    quiet: () => quiet(),
     onChange(state: IdleState, via: string) {
       document.body.dataset.state = state;
       post('/api/state', { state, via });
@@ -89,8 +92,10 @@ export async function boot(app: HTMLElement): Promise<void> {
         main.unmount(); // free memory before the server turns the screen off
         target = null;
         drawRail();
-      } else if (state === 'active' && !main.currentId) {
-        go(home.id); // wake from Off lands on home
+      } else if (state === 'idle') {
+        if (byId.has(IDLE_SCREEN)) go(IDLE_SCREEN); // photos replace the screen; the rail hides
+      } else if (!main.currentId || (main.currentId ?? target) === IDLE_SCREEN) {
+        go(home.id); // waking from Idle or Off lands on home
       }
     },
   });
@@ -146,7 +151,7 @@ export async function boot(app: HTMLElement): Promise<void> {
     host: overlay,
     screen: doorbellOverlay,
     sound: config.doorbellSound,
-    quiet: quietChecker(config),
+    quiet,
     tabletState: () => idle.state,
     wake() {
       if (idle.state !== 'active') idle.wake('ring');

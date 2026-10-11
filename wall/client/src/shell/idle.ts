@@ -3,11 +3,14 @@ import { every } from './timers';
 
 export type IdleState = 'active' | 'idle' | 'off';
 
+const QUIET_OFF_MS = 60_000;
+
 // The idle clock (spec section 8): Active -> Idle after toIdleSec without touch, Idle -> Off
-// after toOffMin more. Quiet hours and the photos screen arrive in milestone 4.
+// after toOffMin more. In quiet hours Idle is skipped and the screen goes Off after 1 minute.
 export function createIdleClock(opts: {
   idle: ClientConfig['idle'];
   paused: boolean;
+  quiet(): boolean;
   onChange(state: IdleState, via: string): void;
 }) {
   let state: IdleState = 'active';
@@ -24,10 +27,15 @@ export function createIdleClock(opts: {
 
   every(1000, () => {
     if (opts.paused || held) return;
-    const quiet = Date.now() - lastTouch;
+    if (state === 'off') return;
+    const still = Date.now() - lastTouch;
+    if (opts.quiet()) {
+      if (still >= QUIET_OFF_MS) set('off', 'quiet');
+      return;
+    }
     const toIdle = opts.idle.toIdleSec * 1000;
-    if (state === 'active' && quiet >= toIdle) set('idle', 'timer');
-    else if (state === 'idle' && quiet >= toIdle + opts.idle.toOffMin * 60_000) set('off', 'timer');
+    if (state === 'active' && still >= toIdle) set('idle', 'timer');
+    else if (state === 'idle' && still >= toIdle + opts.idle.toOffMin * 60_000) set('off', 'timer');
   });
 
   return {

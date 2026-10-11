@@ -196,6 +196,9 @@ button { font: inherit; color: inherit; }
 }
 .overlay-layer[data-mounted] { pointer-events: auto; }
 
+/* Idle: the photos screen fills the whole screen, rail included (the "Idle, art" mockup). */
+body[data-state='idle'] .rail { display: none; }
+
 /* Off: nothing is mounted, so show black rather than a stale rail. */
 body[data-state='off'] #app > * { visibility: hidden; }
 

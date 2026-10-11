@@ -8,6 +8,7 @@ export interface ClientConfig {
   calendars: { id: string; name: string; color: string }[];
   cameraGrid: 'stills' | 'live';
   doorbellSound: boolean;
+  photosIntervalSec: number;
   soak: boolean;
 }
 
