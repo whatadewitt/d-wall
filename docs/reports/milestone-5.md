@@ -70,6 +70,8 @@ Every `log.*` call in `server/src` was read. It logs ids from `config.yaml` (cal
 | W11 | Boot while hidden starts Off. This leans on `visibilityState`, which is still pending in the milestone 0 spike S3. If the WebView wrongly reports hidden with the screen on, the page boots to Off and the screen goes dark until the next touch or motion. | The nightly reload at 03:30 normally happens with the screen off. |
 | W12 | A crash logs one `fatal` JSON line, with the stack, and exits for Docker to restart it. That is what Node 22 already does for both cases, but before this Node printed plain text that broke the JSON log. | Section 10, "logs are structured JSON". |
 
+**Ratified by you, Oct 11:** W1, W2 and W3 approved. W4 to W12 stand as proposed (you deferred to these calls).
+
 ## 6. Gate checks (on the tablet)
 
 Rebuild first: `cd ~/code/d-wall/wall && git pull && docker compose up -d --build`.
