@@ -1,0 +1,111 @@
+/* Doorbell popup, from the "Doorbell popup" mockup. Values come from theme.css. */
+.bell-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bell {
+  width: var(--popup-w);
+  height: var(--popup-h);
+  box-sizing: border-box;
+  padding: var(--pad);
+  border-radius: var(--radius-panel);
+  border: 1px solid var(--control-line);
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+}
+.bell-head { height: var(--button-lg); flex: none; display: flex; align-items: center; justify-content: space-between; }
+.bell-head__title { display: flex; align-items: center; gap: var(--sp-16); }
+.bell-badge {
+  width: var(--button-lg);
+  height: var(--button-lg);
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bell-badge svg { width: 1.875rem; height: 1.875rem; }
+.bell-title { margin: 0; font-family: var(--font-display); font-size: var(--fs-popup-title); font-weight: 700; line-height: 1.1; letter-spacing: -0.01em; }
+.bell-sub { margin-top: var(--sp-2); font-size: var(--fs-header-date); font-weight: 500; color: var(--text-2); }
+.bell-round {
+  width: var(--button-lg);
+  height: var(--button-lg);
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--control-line);
+  background: var(--control-raised);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bell-round svg { width: 1.625rem; height: 1.625rem; }
+
+.bell-view {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  border-radius: var(--radius-view);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background-color: var(--tile-bg);
+  background-image: repeating-linear-gradient(135deg, var(--tile-stripe) 0, var(--tile-stripe) 14px, var(--tile-bg) 14px, var(--tile-bg) 28px);
+  touch-action: none; /* section 9: no browser gestures on live video */
+}
+.bell-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: var(--video-bg);
+  opacity: 0;
+}
+.bell-img[data-front] { opacity: 1; }
+.bell-pill {
+  position: absolute;
+  left: var(--sp-14);
+  top: var(--sp-14);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-6) var(--sp-14);
+  border-radius: var(--radius-age);
+  background: var(--label-bg);
+  font-size: var(--fs-pill);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.bell-dot { width: var(--sp-10); height: var(--sp-10); border-radius: 50%; background: var(--live); }
+.bell-name {
+  position: absolute;
+  left: var(--sp-14);
+  bottom: var(--sp-14);
+  padding: var(--sp-9) var(--sp-16);
+  border-radius: var(--radius-label);
+  background: var(--label-bg);
+  font-size: var(--fs-tile-name);
+  font-weight: 700;
+}
+
+.bell-foot { height: var(--button-lg); flex: none; display: flex; align-items: center; gap: var(--sp-14); }
+.bell-btn {
+  height: var(--button-lg);
+  padding: 0 var(--sp-28);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--control-line);
+  background: transparent;
+  font-size: var(--fs-tile-name);
+  font-weight: 700;
+}
+.bell-btn--accent { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+.bell-timer { flex: 1; display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-8); }
+.bell-timer__text { font-size: var(--fs-pill); font-weight: 600; color: var(--text-2); }
+.bell-bar { width: var(--bar-w); height: var(--sp-6); border-radius: var(--sp-4); background: var(--control-line); overflow: hidden; }
+.bell-bar__fill { height: 100%; border-radius: var(--sp-4); background: var(--accent); transition: width 1s linear; }

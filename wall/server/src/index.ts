@@ -100,6 +100,22 @@ app.post('/api/telemetry', {
             fallback: { type: 'boolean' },
           },
         },
+        // Ring-to-popup timings from the doorbell overlay (milestone 3 targets), in ms after the ring
+        // by the server's clock.
+        doorbell: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            at: { type: 'string', maxLength: 30 },
+            via: { enum: ['event', 'state'] },
+            from: { type: 'string', maxLength: 10 }, // the tablet's state when the ring arrived
+            receivedMs: { type: ['number', 'null'] },
+            popupMs: { type: ['number', 'null'] },
+            stillMs: { type: ['number', 'null'] },
+            liveMs: { type: ['number', 'null'] },
+            sound: { type: 'string', maxLength: 12 },
+          },
+        },
         lastSwitch: {
           type: ['object', 'null'],
           additionalProperties: false,
@@ -118,8 +134,9 @@ app.post('/api/telemetry', {
     },
   },
 }, async (req) => {
-  const body = req.body as { video?: unknown };
+  const body = req.body as { video?: unknown; doorbell?: unknown };
   if (body.video) log.info({ video: body.video }, 'live view');
+  else if (body.doorbell) log.info({ doorbell: body.doorbell }, 'doorbell popup');
   else log.info({ telemetry: req.body }, 'heartbeat');
   return { ok: true };
 });

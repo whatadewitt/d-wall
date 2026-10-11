@@ -26,6 +26,9 @@ photos: { source: folder, path: /data/photos, intervalSec: 30 }
 # Set by the milestone 2 spikes (spec section 6). stills: protect or go2rtc. live: main or medium.
 # grid: stills (spec) or live (experiment: low-res live video in each tile).
 cameraOptions: { stills: protect, live: main, grid: stills }
+# Doorbell (milestone 3). sound: a ding on the tablet when a ring arrives live, at full volume,
+# silent in quiet hours. Off unless set to true.
+doorbell: { sound: false }
 # Soak harness (section 11). When on, the client mounts and unmounts every registered screen
 # every 60 s and the idle clock is paused; the server logs Fully Kiosk RAM every 5 minutes.
 debug: { soak: false }

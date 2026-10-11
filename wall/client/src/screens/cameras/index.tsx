@@ -55,8 +55,12 @@ export const mount: Mount = (root, ctx) => {
     return r;
   };
 
+  // While the doorbell popup is open it has the one live stream (section 11): this screen closes
+  // its own and reopens them when the popup closes.
+  let paused = false;
+
   function startTileStreams(): void {
-    if (!gridLive || full) return;
+    if (!gridLive || full || paused) return;
     for (const c of known.cams) {
       if (tileLive.has(c.id)) continue;
       const video = videoRefFor(c.id).current;
@@ -171,7 +175,7 @@ export const mount: Mount = (root, ctx) => {
     full = { index: ((index % n) + n) % n, controls: true, status: 'connecting', openedAt: Date.now(), connectMs: null, stream: '', lastStats: Date.now() };
     draw();
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || paused) return;
     const view = full;
     const session = openLive(ctx, known.cams[view.index].id, video);
     live = session;
@@ -284,13 +288,14 @@ export const mount: Mount = (root, ctx) => {
 
   function tick(): void {
     const now = Date.now();
+    if (paused) lastTouch = now; // never leave the screen from under the popup
     if (!full) {
       if (now - lastTouch >= GRID_RETURN_MS && home !== 'cameras') return ctx.go(home);
       if (now - lastPoll >= GRID_POLL_MS) pollGrid();
     } else {
       const view = full;
       if (now - lastTouch >= FULL_RETURN_MS) return closeFull();
-      if (view.status === 'connecting' && now - view.openedAt >= LIVE_TIMEOUT_MS) fallBack(view);
+      if (view.status === 'connecting' && !paused && now - view.openedAt >= LIVE_TIMEOUT_MS) fallBack(view);
       if (view.status === 'unavailable') void pollStill(known.cams[view.index].id, true);
       if (view.status === 'live' && now - view.lastStats >= STATS_EVERY_MS) {
         view.lastStats = now;
@@ -304,6 +309,22 @@ export const mount: Mount = (root, ctx) => {
     lastTouch = Date.now();
   }, { capture: true, passive: true });
 
+  ctx.subscribe('doorbell.popup', (msg) => {
+    if (Boolean(msg) === paused) return;
+    paused = Boolean(msg);
+    if (paused) {
+      stopTileStreams();
+      if (full) {
+        stopLive();
+        full.status = 'connecting';
+        draw();
+      }
+    } else if (full) {
+      openFull(full.index);
+    } else {
+      startTileStreams();
+    }
+  });
   ctx.every(1000, tick);
   ctx.signal.addEventListener('abort', () => {
     stopTileStreams();

@@ -13,7 +13,8 @@ export default tseslint.config(
     languageOptions: { parser: tseslint.parser },
   },
   {
-    files: ['client/src/screens/**/*.{ts,tsx}'],
+    // Overlays (the doorbell popup) follow the same contract (section 4).
+    files: ['client/src/screens/**/*.{ts,tsx}', 'client/src/overlays/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-globals': ['error', ...banned.map((name) => ({ name, message }))],
       'no-restricted-properties': [

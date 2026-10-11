@@ -13,6 +13,7 @@ export function createIdleClock(opts: {
   let state: IdleState = 'active';
   let lastTouch = Date.now();
   let wokeAt = 0;
+  let held = false; // the doorbell popup holds the clock: nothing steps down while it is open
 
   const set = (next: IdleState, via: string) => {
     if (next === state) return;
@@ -22,7 +23,7 @@ export function createIdleClock(opts: {
   };
 
   every(1000, () => {
-    if (opts.paused) return;
+    if (opts.paused || held) return;
     const quiet = Date.now() - lastTouch;
     const toIdle = opts.idle.toIdleSec * 1000;
     if (state === 'active' && quiet >= toIdle) set('idle', 'timer');
@@ -38,6 +39,10 @@ export function createIdleClock(opts: {
       return Date.now() - wokeAt < 400;
     },
     touch() {
+      lastTouch = Date.now();
+    },
+    hold(on: boolean) {
+      held = on;
       lastTouch = Date.now();
     },
     wake(via: string) {

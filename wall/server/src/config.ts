@@ -13,6 +13,7 @@ export interface Config {
   calendars: { id: string; name?: string; googleId: string; color: string }[];
   cameras: { id: string; name: string; rtsps: string; doorbell?: boolean }[];
   cameraOptions?: { stills?: 'protect' | 'go2rtc'; live?: 'main' | 'medium'; grid?: 'stills' | 'live' }; // milestone 2 spikes
+  doorbell?: { sound?: boolean }; // milestone 3: a ding on the tablet for a live ring
   kiosk: { host: string; port: number };
   photos: { source: string; path: string; intervalSec: number };
   debug: { soak: boolean };
@@ -28,6 +29,7 @@ export interface ClientConfig {
   idle: Config['idle'];
   calendars: { id: string; name: string; color: string }[];
   cameraGrid: 'stills' | 'live'; // experiment: live low-res video in the grid tiles
+  doorbellSound: boolean;
   soak: boolean;
 }
 
@@ -74,6 +76,7 @@ export function clientConfig(c: Config): ClientConfig {
     idle: c.idle,
     calendars: c.calendars.map(({ id, name, color }) => ({ id, name: name ?? id, color })),
     cameraGrid: c.cameraOptions?.grid ?? 'stills',
+    doorbellSound: c.doorbell?.sound === true,
     soak: c.debug.soak,
   };
 }
