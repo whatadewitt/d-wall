@@ -15,7 +15,7 @@ export interface Config {
   cameraOptions?: { stills?: 'protect' | 'go2rtc'; live?: 'main' | 'medium'; grid?: 'stills' | 'live' }; // milestone 2 spikes
   doorbell?: { sound?: boolean }; // milestone 3: a ding on the tablet for a live ring
   kiosk: { host: string; port: number };
-  spotify?: { device?: string }; // the Spotify Connect speaker "Play on" sends music to (backlog)
+  spotify?: { device?: string }; // milestone 7: the kitchen speaker, preferred when two accounts play
   photos: { source: string; path: string; intervalSec: number };
   debug: { soak: boolean };
 }

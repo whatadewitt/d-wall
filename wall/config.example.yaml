@@ -6,7 +6,7 @@ server: { port: 9600 }
 timezone: America/Halifax
 weekStart: 0              # 0 = Sunday
 clock: 12h
-# Rail order. The first is home.
+# Rail order. The first is home. google-home is a rail link that opens the Google Home app (milestone 7); never put it first.
 screens: [calendar, cameras]
 idle: { toIdleSec: 180, toOffMin: 20, quietHours: { from: "22:00", to: "06:30" } }
 # Calendar order sets the shape beside each title: circle, rounded square, diamond, triangle.
@@ -30,8 +30,9 @@ cameraOptions: { stills: protect, live: main, grid: stills }
 # Doorbell (milestone 3). sound: a ding on the tablet when a ring arrives live, at full volume,
 # silent in quiet hours. Off unless set to true.
 doorbell: { sound: false }
-# Spotify controller (milestone 7). device: the speaker's name exactly as the Spotify app shows it
-# under Devices. Add spotify to screens: to put it in the rail.
+# Spotify now playing (milestone 7). device: the kitchen speaker's name exactly as the Spotify app
+# shows it; if two accounts play at once, the one on this speaker is shown. Add spotify to screens:
+# for its page in the rail.
 # spotify: { device: "Kitchen display" }
 # Soak harness (section 11). When on, the client mounts and unmounts every registered screen
 # every 60 s and the idle clock is paused; the server logs Fully Kiosk RAM every 5 minutes.

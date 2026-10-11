@@ -9,6 +9,8 @@ declare global {
       playSound?(url: string, loop: boolean, stream?: number): void;
       setAudioVolume?(volume: number, stream: number): void;
       getAudioVolume?(stream: number): number;
+      // Opens another app (milestone 7: the Google Home rail link).
+      startApplication?(packageName: string, action?: string, url?: string): void;
     };
     __wallFully?: (event: string) => void;
   }
@@ -20,5 +22,12 @@ export function bindFully(handler: (event: string) => void): boolean {
   if (typeof window.fully?.bind !== 'function') return false;
   window.__wallFully = handler;
   for (const ev of FULLY_EVENTS) window.fully.bind(ev, `window.__wallFully && window.__wallFully('${ev}')`);
+  return true;
+}
+
+// Opens another Android app by package name. False when not running in Fully Kiosk.
+export function launchApp(packageName: string): boolean {
+  if (typeof window.fully?.startApplication !== 'function') return false;
+  window.fully.startApplication(packageName);
   return true;
 }

@@ -11,11 +11,13 @@
 }
 .photo[data-fill] { object-fit: cover; }
 .photo[data-front] { opacity: 1; }
-.photos-caption, .photos-clock {
-  position: absolute;
-  bottom: var(--idle-edge);
+.photos-caption, .photos-clock, .photos-music {
   background: var(--idle-label-bg);
   color: var(--text);
+}
+.photos-caption, .photos-corner {
+  position: absolute;
+  bottom: var(--idle-edge);
 }
 .photos-caption {
   left: var(--idle-edge);
@@ -25,11 +27,35 @@
 }
 .photos-caption__title { font-size: var(--fs-caption); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .photos-caption__credit { margin-top: var(--sp-2); font-size: var(--fs-header-date); font-weight: 500; color: var(--idle-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.photos-clock {
+.photos-corner {
   right: var(--idle-edge);
+  max-width: 40%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--sp-12);
+}
+.photos-clock {
   padding: var(--sp-16) var(--sp-26);
   border-radius: var(--radius-idle-clock);
   text-align: right;
 }
 .photos-clock__time { font-family: var(--font-display); font-size: var(--fs-idle-clock); font-weight: 700; line-height: 1; letter-spacing: -0.015em; white-space: nowrap; }
 .photos-clock__date { margin-top: var(--sp-6); font-size: var(--fs-idle-date); font-weight: 500; color: var(--idle-text-2); white-space: nowrap; }
+
+/* What's playing on Spotify, above the clock (milestone 7). */
+.photos-music {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-14);
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: var(--sp-12);
+  padding-right: var(--sp-22);
+  border-radius: var(--radius-idle-caption);
+}
+.photos-music__art { width: var(--music-thumb); height: var(--music-thumb); flex: none; border-radius: var(--radius-chip); object-fit: cover; }
+.photos-music__text { min-width: 0; }
+.photos-music__title { font-size: var(--fs-tile-name); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.photos-music__sub { margin-top: var(--sp-2); font-size: var(--fs-header-date); font-weight: 500; color: var(--idle-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.photos-music[data-paused] .photos-music__art { opacity: 0.6; }

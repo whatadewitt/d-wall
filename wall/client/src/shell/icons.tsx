@@ -19,6 +19,12 @@ const paths: Record<string, preact.JSX.Element> = {
       <circle cx="17" cy="15.5" r="2.5" />
     </>
   ),
+  home: (
+    <>
+      <path d="M4 10.5L12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19z" />
+      <path d="M9.5 20.5v-6h5v6" />
+    </>
+  ),
   clock: (
     <>
       <circle cx="12" cy="12" r="8.5" />

@@ -5,14 +5,15 @@
 // It prints a Spotify sign-in link. Open it on any computer or phone and approve. Spotify then
 // sends the browser to http://127.0.0.1:8888/callback?code=…, which won't load: that's expected.
 // Copy the whole address from the address bar, paste it here, and the script prints the refresh
-// token for .env. Needs SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET in .env first.
+// token for .env. Needs SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET in .env first. Run it once per
+// Spotify account in the house, signing in as that account each time.
 import { randomBytes } from 'node:crypto';
 import { createInterface } from 'node:readline/promises';
 
 const ACCOUNTS = process.env.SPOTIFY_ACCOUNTS_URL ?? 'https://accounts.spotify.com';
 const REDIRECT = process.env.SPOTIFY_REDIRECT_URI ?? 'http://127.0.0.1:8888/callback';
-// Read what's playing and the speakers, and control playback. Nothing else.
-const SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
+// Read what's playing and on which speaker. Nothing else: the wall never controls playback.
+const SCOPES = 'user-read-playback-state user-read-currently-playing';
 
 async function main(): Promise<void> {
   const { SPOTIFY_CLIENT_ID: id, SPOTIFY_CLIENT_SECRET: secret } = process.env;
@@ -21,8 +22,10 @@ async function main(): Promise<void> {
     process.exit(2);
   }
   const state = randomBytes(12).toString('hex');
-  const link = `${ACCOUNTS}/authorize?${new URLSearchParams({ client_id: id, response_type: 'code', redirect_uri: REDIRECT, scope: SCOPES, state })}`;
-  console.log('\n1. Open this link and approve:\n');
+  const link = `${ACCOUNTS}/authorize?${new URLSearchParams({ client_id: id, response_type: 'code', redirect_uri: REDIRECT, scope: SCOPES, state, show_dialog: 'true' })}`;
+  console.log('\n1. Open this link, sign in as the Spotify account to add, and approve.');
+  console.log('   If it skips the sign-in, it is using whoever is already signed in: log out of');
+  console.log('   spotify.com in that browser first, or use a private window.\n');
   console.log(`   ${link}\n`);
   console.log(`2. The browser then goes to ${REDIRECT}?code=… and shows an error. That's expected.`);
   console.log('   Copy the whole address from the address bar.\n');
@@ -66,8 +69,9 @@ async function main(): Promise<void> {
     console.error(`Spotify refused the code: ${body.error_description ?? body.error ?? res.status}. Run the script again.`);
     process.exit(1);
   }
-  console.log('\n4. Add this line to wall/.env, then run: docker compose up -d --force-recreate wall-server\n');
-  console.log(`SPOTIFY_REFRESH_TOKEN=${body.refresh_token}\n`);
+  console.log('\n4. Add this token to SPOTIFY_REFRESH_TOKENS in wall/.env. For a second account, put a comma');
+  console.log('   between the tokens. Then run: docker compose up -d --force-recreate wall-server\n');
+  console.log(`${body.refresh_token}\n`);
 }
 
 main().catch((err) => {

@@ -1,8 +1,10 @@
 // The photos screen (spec section 8), mounted only while the tablet is Idle. Two stacked images
 // cross-fade every photos.intervalSec. The next image is fetched and decoded before the fade, and
 // the old one is dropped after it, so at most two decoded photos exist. A clock and date sit in
-// the corner, and the artwork's title and credit in the other when the server has them.
+// the corner, and the artwork's title and credit in the other when the server has them. Above the
+// clock, what's playing on Spotify, when something is (milestone 7).
 import { createRef, render } from 'preact';
+import type { SpotifyMessage } from '../../shell/nowplaying';
 import type { Mount } from '../types';
 import './photos.css';
 
@@ -29,6 +31,7 @@ export const mount: Mount = (root, ctx) => {
   let busy = false;
   let lastSwap = 0;
   let fadedAt = 0;
+  let music: SpotifyMessage | null = null;
   // The screen in device pixels, so the server sends an image the size of the screen (section 4).
   const size = `w=${Math.round(innerWidth * devicePixelRatio)}&h=${Math.round(innerHeight * devicePixelRatio)}`;
 
@@ -84,9 +87,21 @@ export const mount: Mount = (root, ctx) => {
             {shown.caption.credit && <div class="photos-caption__credit">{shown.caption.credit}</div>}
           </div>
         )}
-        <div class="photos-clock">
-          <div class="photos-clock__time">{time.format(now)}</div>
-          <div class="photos-clock__date">{date.format(now)}</div>
+        <div class="photos-corner">
+          {music?.now && (
+            <div class="photos-music" data-paused={!music.now.playing || undefined}>
+              {music.now.thumb && <img class="photos-music__art" src={music.now.thumb} alt="" />}
+              <div class="photos-music__text">
+                <div class="photos-music__title">{music.now.title}</div>
+                <div class="photos-music__sub">{music.now.playing ? music.now.artist : 'Paused'}</div>
+                <div class="photos-music__sub">on {music.now.device.name}</div>
+              </div>
+            </div>
+          )}
+          <div class="photos-clock">
+            <div class="photos-clock__time">{time.format(now)}</div>
+            <div class="photos-clock__date">{date.format(now)}</div>
+          </div>
         </div>
       </div>,
       root,
@@ -106,6 +121,14 @@ export const mount: Mount = (root, ctx) => {
     clear(0);
     clear(1);
   });
+  if (config.screens.includes('spotify')) {
+    const hear = (msg: unknown) => {
+      music = msg as SpotifyMessage;
+      draw();
+    };
+    ctx.subscribe('spotify.now', hear);
+    ctx.fetch('/api/spotify/now').then((r) => (r.ok ? r.json() : null)).then((m) => m && hear(m)).catch(() => {});
+  }
   draw();
   void advance();
 };

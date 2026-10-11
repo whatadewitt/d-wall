@@ -1,37 +1,42 @@
 import { IMAGE_BASE, imageId, Spotify, SpotifyError } from '../spotify.js';
+import { serverState } from '../state.js';
 import type { Provider, ProviderDeps } from './types.js';
 
-// The spotify provider (docs/backlog.md): a remote control for Spotify, playing on the Google
-// Nest Hub (or any Spotify Connect device). The tablet never plays audio. Spotify has no push for
-// playback, so the screen polls GET /api/spotify/player while it is mounted; the server shares one
-// answer per second between callers. Track names and tokens never reach the log.
+// The spotify provider (milestone 7): what's playing on Spotify and on which speaker. Display only;
+// the wall never controls playback. Spotify has no push for playback, so the server polls each
+// signed-in account while the tablet is on (Active or Idle) and publishes `spotify.now` when
+// something changes. Track names and tokens never reach the log.
 
-const PLAYER_CACHE_MS = 1000;
+const POLL_PLAYING_MS = 5000;
+const POLL_QUIET_MS = 10_000;
+const PAUSED_SHOW_MS = 10 * 60_000; // a paused track stays on the wall this long, then goes
+const SEEK_SLACK_MS = 3000;         // progress further than this from the expected value is republished
 const AUTH_RETRY_MS = 60_000;
-const ART_KEEP = 4;
+const ART_KEEP = 8;
 const ART_MAX_BYTES = 2 * 1024 * 1024;
 
-type Problem = 'not-configured' | 'auth' | 'premium' | 'rate' | 'unavailable';
+type Problem = 'not-configured' | 'auth' | 'rate' | 'unavailable';
 
-export interface PlayerView {
-  ok: boolean;
-  problem?: Problem;
+export interface NowPlaying {
   playing: boolean;
-  item: { title: string; artist: string; album: string; art: string | null; durationMs: number } | null;
+  title: string;
+  artist: string;
+  album: string;
+  art: string | null;   // about 640 px, for the Spotify screen
+  thumb: string | null; // about 300 px, for the island and the lock screen
+  durationMs: number;
   progressMs: number;
-  device: { id: string; name: string; type: string; volume: number | null } | null;
-  target: string | null; // spotify.device in config.yaml: the speaker "Play on" sends music to
-  at: number;            // server time the state was read, for the screen's progress bar
+  at: number;           // server time progressMs was read
+  device: { name: string; type: string };
 }
 
-export interface DeviceView { id: string; name: string; type: string; active: boolean }
+export interface SpotifyMessage { now: NowPlaying | null; problem: Problem | null }
 
 interface SpotifyImage { url: string; width?: number | null }
-interface SpotifyDevice { id: string | null; name: string; type: string; is_active: boolean; is_restricted?: boolean; volume_percent: number | null; supports_volume?: boolean }
 interface SpotifyPlayer {
   is_playing: boolean;
   progress_ms: number | null;
-  device?: SpotifyDevice;
+  device?: { name: string; type: string };
   item?: {
     type: 'track' | 'episode';
     name: string;
@@ -43,182 +48,141 @@ interface SpotifyPlayer {
   } | null;
 }
 
-// The image closest to 640 px wide, which is the largest Spotify serves and about right for the art panel.
-const pickImage = (images: SpotifyImage[] = []) =>
-  [...images].sort((a, b) => Math.abs((a.width ?? 640) - 640) - Math.abs((b.width ?? 640) - 640))[0]?.url;
+const closest = (images: SpotifyImage[] = [], px: number) =>
+  [...images].sort((a, b) => Math.abs((a.width ?? px) - px) - Math.abs((b.width ?? px) - px))[0]?.url;
+const artPath = (url: string | undefined) => {
+  const id = imageId(url);
+  return id ? `/api/spotify/art/${id}` : null;
+};
 
-function toView(p: SpotifyPlayer | null, target: string | null): PlayerView {
-  const view: PlayerView = { ok: true, playing: false, item: null, progressMs: 0, device: null, target, at: Date.now() };
-  if (!p) return view; // 204: nothing playing anywhere
-  view.playing = p.is_playing;
-  view.progressMs = p.progress_ms ?? 0;
-  if (p.device) {
-    view.device = {
-      id: p.device.id ?? '',
-      name: p.device.name,
-      type: p.device.type,
-      volume: p.device.supports_volume === false ? null : p.device.volume_percent,
-    };
-  }
-  const it = p.item;
-  if (it) {
-    const id = imageId(pickImage(it.album?.images ?? it.images ?? it.show?.images));
-    view.item = {
-      title: it.name,
-      artist: it.type === 'episode' ? (it.show?.name ?? '') : (it.artists ?? []).map((a) => a.name).join(', '),
-      album: it.type === 'episode' ? '' : (it.album?.name ?? ''),
-      art: id ? `/api/spotify/art/${id}` : null,
-      durationMs: it.duration_ms,
-    };
-  }
-  return view;
+function toNow(p: SpotifyPlayer | null): NowPlaying | null {
+  const it = p?.item;
+  if (!p || !it || !p.device) return null;
+  const images = it.album?.images ?? it.images ?? it.show?.images;
+  return {
+    playing: p.is_playing,
+    title: it.name,
+    artist: it.type === 'episode' ? (it.show?.name ?? '') : (it.artists ?? []).map((a) => a.name).join(', '),
+    album: it.type === 'episode' ? '' : (it.album?.name ?? ''),
+    art: artPath(closest(images, 640)),
+    thumb: artPath(closest(images, 300)),
+    durationMs: it.duration_ms,
+    progressMs: p.progress_ms ?? 0,
+    at: Date.now(),
+    device: { name: p.device.name, type: p.device.type },
+  };
 }
 
-const empty = (target: string | null, problem: Problem): PlayerView =>
-  ({ ok: false, problem, playing: false, item: null, progressMs: 0, device: null, target, at: Date.now() });
+interface Account {
+  n: number;               // 1-based, for the log
+  api: Spotify;
+  now: NowPlaying | null;
+  pausedSince: number | null;
+  problem: Problem | null;
+  blockedUntil: number;
+}
 
-export function spotifyProvider({ config, log }: ProviderDeps): Provider {
-  const target = config.spotify?.device ?? null;
-  const { SPOTIFY_CLIENT_ID: id, SPOTIFY_CLIENT_SECRET: secret, SPOTIFY_REFRESH_TOKEN: refresh } = process.env;
-  const api = id && secret && refresh
-    ? new Spotify(id, secret, refresh, () => log.warn({ provider: 'spotify' }, 'Spotify issued a new refresh token; the one in .env may stop working, and the sign-in may need redoing'))
-    : null;
+export function spotifyProvider({ config, hub, log, bus }: ProviderDeps): Provider {
+  const kitchen = config.spotify?.device ?? null;
+  const { SPOTIFY_CLIENT_ID: id, SPOTIFY_CLIENT_SECRET: secret } = process.env;
+  // One refresh token per Spotify account in the house, comma-separated.
+  const tokens = (process.env.SPOTIFY_REFRESH_TOKENS ?? process.env.SPOTIFY_REFRESH_TOKEN ?? '').split(',').map((t) => t.trim()).filter(Boolean);
+  const accounts: Account[] = id && secret
+    ? tokens.map((t, i) => ({
+        n: i + 1,
+        api: new Spotify(id, secret, t, () => log.warn({ provider: 'spotify', account: i + 1 }, 'Spotify issued a new refresh token; the one in .env may stop working, and the sign-in may need redoing')),
+        now: null,
+        pausedSince: null,
+        problem: null,
+        blockedUntil: 0,
+      }))
+    : [];
 
-  let cached: { view: PlayerView; at: number } | null = null;
-  let inflight: Promise<PlayerView> | null = null;
-  let blockedUntil = 0; // Spotify's Retry-After after a 429, or a pause after a refused sign-in
-  let lastProblem: Problem | null = null;
+  let current: SpotifyMessage = { now: null, problem: accounts.length ? null : 'not-configured' };
+  let timer: NodeJS.Timeout | null = null;
+  let running = false;
   const art = new Map<string, Buffer>();
 
-  // What a Spotify failure means for the screen, logged once per change so polling can't flood the log.
-  function problemOf(err: unknown): Problem {
+  function problemOf(acc: Account, err: unknown): Problem {
     const e = err instanceof SpotifyError ? err : new SpotifyError(0, 'network', String(err));
     let p: Problem = 'unavailable';
     if (e.reason === 'auth' || e.reason === 'token' || e.status === 401) {
       p = 'auth';
-      blockedUntil = Date.now() + AUTH_RETRY_MS; // don't ask Spotify for a token every poll
-    }
-    else if (e.reason === 'PREMIUM_REQUIRED' || (e.status === 403 && /premium/i.test(e.message))) p = 'premium';
-    else if (e.status === 429) {
+      acc.blockedUntil = Date.now() + AUTH_RETRY_MS; // don't ask Spotify for a token every poll
+    } else if (e.status === 429) {
       p = 'rate';
-      blockedUntil = Date.now() + (e.retryAfterSec || 30) * 1000;
+      acc.blockedUntil = Date.now() + (e.retryAfterSec || 30) * 1000;
     }
-    if (p !== lastProblem) log.warn({ provider: 'spotify', problem: p, status: e.status, reason: e.reason, err: e.message }, 'Spotify call failed');
-    lastProblem = p;
+    // Logged once per change, so polling can't flood the log.
+    if (p !== acc.problem) log.warn({ provider: 'spotify', account: acc.n, problem: p, status: e.status, reason: e.reason, err: e.message }, 'Spotify call failed');
     return p;
   }
 
-  async function readPlayer(): Promise<PlayerView> {
-    if (!api) return empty(target, 'not-configured');
-    if (Date.now() < blockedUntil) return empty(target, lastProblem ?? 'rate');
-    if (cached && Date.now() - cached.at < PLAYER_CACHE_MS) return cached.view;
-    inflight ??= (async () => {
-      try {
-        const view = toView((await api.call('GET', '/me/player?additional_types=episode')) as SpotifyPlayer | null, target);
-        if (lastProblem) log.info({ provider: 'spotify' }, 'Spotify reachable again');
-        lastProblem = null;
-        cached = { view, at: Date.now() };
-        return view;
-      } catch (err) {
-        return empty(target, problemOf(err));
-      } finally {
-        inflight = null;
-      }
-    })();
-    return inflight;
+  async function read(acc: Account): Promise<void> {
+    if (Date.now() < acc.blockedUntil) return;
+    try {
+      const now = toNow((await acc.api.call('GET', '/me/player?additional_types=episode')) as SpotifyPlayer | null);
+      if (acc.problem) log.info({ provider: 'spotify', account: acc.n }, 'Spotify reachable again');
+      acc.problem = null;
+      acc.now = now;
+      acc.pausedSince = now && !now.playing ? (acc.pausedSince ?? Date.now()) : null;
+    } catch (err) {
+      acc.problem = problemOf(acc, err);
+    }
   }
 
-  // Map a failed command to an HTTP answer the screen can explain.
-  function commandError(err: unknown): { code: number; body: { error: string } } {
-    if (err instanceof SpotifyError && (err.reason === 'NO_ACTIVE_DEVICE' || (err.status === 404 && /device/i.test(err.message)))) {
-      return { code: 409, body: { error: 'no-device' } };
-    }
-    const p = problemOf(err);
-    return { code: p === 'premium' ? 403 : p === 'unavailable' ? 502 : 503, body: { error: p } };
+  // Which account the wall shows: one playing on the kitchen speaker, then any account playing,
+  // then one paused in the last 10 minutes. Ties go to the order in .env.
+  function pick(): NowPlaying | null {
+    const live = accounts.filter((a) => a.now?.playing);
+    const onKitchen = live.find((a) => a.now?.device.name === kitchen);
+    if (onKitchen || live[0]) return (onKitchen ?? live[0]).now;
+    const paused = accounts.find((a) => a.now && a.pausedSince !== null && Date.now() - a.pausedSince < PAUSED_SHOW_MS);
+    return paused?.now ?? null;
   }
+
+  // Worth telling the tablet: a different track, speaker, art or play state, or a jump in progress.
+  function changed(a: NowPlaying | null, b: NowPlaying | null): boolean {
+    if (!a || !b) return a !== b;
+    if (a.playing !== b.playing || a.title !== b.title || a.artist !== b.artist || a.art !== b.art || a.device.name !== b.device.name) return true;
+    const expected = a.progressMs + (a.playing ? b.at - a.at : 0);
+    return Math.abs(b.progressMs - expected) > SEEK_SLACK_MS;
+  }
+
+  async function poll(): Promise<void> {
+    timer = null;
+    if (!running) return;
+    await Promise.all(accounts.map(read));
+    const now = pick();
+    const problem = now || accounts.some((a) => !a.problem) ? null : (accounts[0]?.problem ?? null);
+    if (changed(current.now, now) || problem !== current.problem) {
+      current = { now, problem };
+      hub.publish('spotify.now', current);
+    } else if (now) {
+      current = { now, problem }; // fresh progress for GET, without a message
+    }
+    if (running && !timer) timer = setTimeout(() => void poll(), now?.playing ? POLL_PLAYING_MS : POLL_QUIET_MS);
+  }
+
+  // Polls only while the screen is lit: no Spotify calls while the tablet is Off.
+  function setActive(on: boolean): void {
+    if (!accounts.length || on === running) return;
+    running = on;
+    if (on) void poll();
+    else if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  }
+  const onTabletState = (state: string) => setActive(state !== 'off');
+  const onClient = () => hub.publish('spotify.now', current);
 
   return {
     id: 'spotify',
-    topics: [],
+    topics: ['spotify.now'],
     routes(app) {
-      app.get('/api/spotify/player', async () => readPlayer());
-
-      // Every Spotify Connect device Spotify can see right now. Also the spike check: does the Hub appear
-      // while it's idle? (docs/reports/milestone-7.md)
-      app.get('/api/spotify/devices', async (_req, reply) => {
-        if (!api) return reply.code(503).send({ error: 'not-configured' });
-        try {
-          const body = (await api.call('GET', '/me/player/devices')) as { devices?: SpotifyDevice[] } | null;
-          const devices: DeviceView[] = (body?.devices ?? [])
-            .filter((d) => d.id && !d.is_restricted)
-            .map((d) => ({ id: d.id as string, name: d.name, type: d.type, active: d.is_active }));
-          log.info({ provider: 'spotify', devices: devices.length, targetFound: target ? devices.some((d) => d.name === target) : null }, 'devices listed');
-          return { devices, target, targetFound: target ? devices.some((d) => d.name === target) : false };
-        } catch (err) {
-          const e = commandError(err);
-          return reply.code(e.code).send(e.body);
-        }
-      });
-
-      app.post<{ Body: { type: 'play' | 'pause' | 'next' | 'previous' | 'volume'; value?: number } }>('/api/spotify/command', {
-        schema: {
-          body: {
-            type: 'object',
-            required: ['type'],
-            additionalProperties: false,
-            properties: {
-              type: { enum: ['play', 'pause', 'next', 'previous', 'volume'] },
-              value: { type: 'integer', minimum: 0, maximum: 100 },
-            },
-          },
-        },
-      }, async (req, reply) => {
-        if (!api) return reply.code(503).send({ error: 'not-configured' });
-        const { type, value } = req.body;
-        if (type === 'volume' && value === undefined) return reply.code(400).send({ error: 'volume needs a value' });
-        try {
-          if (type === 'play') await api.call('PUT', '/me/player/play');
-          else if (type === 'pause') await api.call('PUT', '/me/player/pause');
-          else if (type === 'next') await api.call('POST', '/me/player/next');
-          else if (type === 'previous') await api.call('POST', '/me/player/previous');
-          else await api.call('PUT', `/me/player/volume?volume_percent=${value}`);
-          cached = null;
-          return { ok: true };
-        } catch (err) {
-          const e = commandError(err);
-          return reply.code(e.code).send(e.body);
-        }
-      });
-
-      // Move playback to a device and keep playing. With no deviceId, to spotify.device from config.yaml.
-      app.post<{ Body: { deviceId?: string } }>('/api/spotify/transfer', {
-        schema: {
-          body: {
-            type: 'object',
-            additionalProperties: false,
-            properties: { deviceId: { type: 'string', minLength: 1, maxLength: 100 } },
-          },
-        },
-      }, async (req, reply) => {
-        if (!api) return reply.code(503).send({ error: 'not-configured' });
-        try {
-          let deviceId = req.body?.deviceId;
-          if (!deviceId) {
-            const body = (await api.call('GET', '/me/player/devices')) as { devices?: SpotifyDevice[] } | null;
-            deviceId = body?.devices?.find((d) => d.name === target && d.id)?.id ?? undefined;
-            if (!deviceId) {
-              log.info({ provider: 'spotify', devices: body?.devices?.length ?? 0 }, 'target speaker not listed by Spotify');
-              return reply.code(409).send({ error: 'target-missing' });
-            }
-          }
-          await api.call('PUT', '/me/player', { device_ids: [deviceId], play: true });
-          cached = null;
-          return { ok: true };
-        } catch (err) {
-          const e = commandError(err);
-          return reply.code(e.code).send(e.body);
-        }
-      });
+      // The current state, for a screen that mounts between messages.
+      app.get('/api/spotify/now', async () => current);
 
       // Album art through the server, so the tablet only ever talks to the server. The last few are kept.
       app.get<{ Params: { id: string } }>('/api/spotify/art/:id', async (req, reply) => {
@@ -242,11 +206,19 @@ export function spotifyProvider({ config, log }: ProviderDeps): Provider {
       });
     },
     start() {
-      if (!config.screens.includes('spotify')) return;
-      if (!api) log.warn({ provider: 'spotify' }, 'Spotify not set up: SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET and SPOTIFY_REFRESH_TOKEN go in .env');
-      else if (!target) log.warn({ provider: 'spotify' }, 'spotify.device is not set in config.yaml, so there is no "Play on" speaker');
+      if (!accounts.length) {
+        if (config.screens.includes('spotify')) log.warn({ provider: 'spotify' }, 'Spotify not set up: SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET and SPOTIFY_REFRESH_TOKENS go in .env');
+        return;
+      }
+      log.info({ provider: 'spotify', accounts: accounts.length, kitchen: kitchen !== null }, 'Spotify started');
+      bus.on('tablet-state', onTabletState);
+      bus.on('client-connected', onClient);
+      setActive(serverState.tablet.state !== 'off');
     },
     stop() {
+      bus.off('tablet-state', onTabletState);
+      bus.off('client-connected', onClient);
+      setActive(false);
       art.clear();
     },
   };

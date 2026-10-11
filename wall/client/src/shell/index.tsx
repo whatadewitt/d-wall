@@ -5,14 +5,18 @@ import { getState, post } from './api';
 import type { ServerSnapshot } from './config';
 import { createDoorbell } from './doorbell';
 import { checkStream, connect, emit, streamLive, subscribe } from './events';
-import { bindFully } from './fully';
+import { bindFully, launchApp } from './fully';
 import { ScreenHost } from './host';
 import { createIdleClock, type IdleState } from './idle';
+import { Island } from './island';
+import { links } from './links';
+import type { SpotifyMessage } from './nowplaying';
 import { quietChecker } from './quiet';
 import { Rail } from './rail';
 import { signal } from './signals';
 import { startSoak } from './soak';
 import { startHeartbeat } from './telemetry';
+import { every } from './timers';
 import { createHeapWatchdog } from './watchdog';
 
 const RETRY_SEC = [1, 2, 5, 10, 30];
@@ -23,6 +27,7 @@ const IDLE_SCREEN = 'photos'; // mounted while Idle, full screen (section 8)
 const HEAP_BUDGET_MB = 60;
 const VIDEO_HEAP_BUDGET_MB = 120;
 const VIDEO_SCREENS = ['cameras'];
+const SPOTIFY_SCREEN = 'spotify'; // the island shows on every other rail screen (milestone 7)
 const doorbellOverlay: Screen = { id: 'doorbell', title: 'Doorbell', icon: 'bell', load: () => import('../overlays/doorbell') };
 
 async function firstState(app: HTMLElement): Promise<ServerSnapshot> {
@@ -49,10 +54,16 @@ export async function boot(app: HTMLElement): Promise<void> {
   if (config.soak) app.append(Object.assign(el('div', 'soak-badge'), { textContent: 'SOAK' }));
 
   const byId = new Map(registry.map((s) => [s.id, s]));
+  const linkById = new Map(links.map((l) => [l.id, l]));
   const railScreens = config.screens.flatMap((id) => {
     const s = byId.get(id);
-    if (!s) console.warn(`config.yaml lists screen "${id}" but it is not in the registry`);
+    if (!s && !linkById.has(id)) console.warn(`config.yaml lists screen "${id}" but it is not in the registry`);
     return s ? [s] : [];
+  });
+  // The rail: screens and app links, in config order.
+  const railItems = config.screens.flatMap((id) => {
+    const item = byId.get(id) ?? linkById.get(id);
+    return item ? [item] : [];
   });
   const home: Screen = railScreens[0] ?? registry[0];
 
@@ -61,7 +72,12 @@ export async function boot(app: HTMLElement): Promise<void> {
   const overlay = new ScreenHost('overlay', overlayLayer, { config, go, touch: () => (idle.touch(), doorbell.touched()) });
   let target: string | null = null; // the screen being shown on the stage, set before its code loads
 
-  const drawRail = () => render(<Rail screens={railScreens} active={main.currentId} onSelect={go} />, rail);
+  const select = (id: string) => {
+    const link = linkById.get(id);
+    if (!link) return go(id);
+    if (!launchApp(link.androidPackage)) console.warn(`cannot open ${link.title}: needs Fully Kiosk's JavaScript interface`);
+  };
+  const drawRail = () => render(<Rail screens={railItems} active={main.currentId} onSelect={select} />, rail);
 
   // Time from a switch to the first frame after mount, sent with the heartbeat (section 11 switch targets).
   let lastSwitch: { screen: string; ms: number } | null = null;
@@ -196,6 +212,25 @@ export async function boot(app: HTMLElement): Promise<void> {
       emit('state', s);
     }, () => {});
   });
+
+  // The island: what's playing on Spotify, over every rail screen except the Spotify screen itself.
+  // Not on the lock screen (it has its own card) or over the doorbell popup.
+  const islandLayer = el('div', 'island-layer');
+  stage.append(islandLayer);
+  let spotify: SpotifyMessage | null = null;
+  const hasSpotify = config.screens.includes(SPOTIFY_SCREEN) && byId.has(SPOTIFY_SCREEN);
+  const drawIsland = () => {
+    const show = hasSpotify && idle.state === 'active' && !doorbell.open && !!main.currentId
+      && main.currentId !== SPOTIFY_SCREEN && main.currentId !== IDLE_SCREEN;
+    render(<Island now={show ? (spotify?.now ?? null) : null} onOpen={() => go(SPOTIFY_SCREEN)} />, islandLayer);
+  };
+  if (hasSpotify) {
+    subscribe('spotify.now', (msg) => {
+      spotify = msg as SpotifyMessage;
+      drawIsland();
+    });
+    every(1000, drawIsland); // follows screen switches, the popup and the idle state
+  }
 
   const soakCycles = config.soak ? startSoak(main, registry) : null;
   const heapWatchdog = createHeapWatchdog({
