@@ -149,10 +149,10 @@ If any camera stays under 15 fps, set `live: medium`, restart, and repeat.
 **Doorbell sound on the tablet (approved in principle, Oct 10).** This changes spec section 7, which currently says the tablet plays no sound. The milestone 3 plan will propose the exact wording for you to approve before it's built.
 
 - **Approach:** a short ding bundled with the client (no Protect API needed), played when `doorbell.ring` arrives, alongside the popup. Playback goes through Fully Kiosk's JavaScript interface, because a web page's own audio is unreliable while the screen is off. It can be switched off on its own, separately from the ring-to-popup work.
-- **To decide in the plan:**
-  - quiet hours (silent or not);
-  - volume;
-  - whether a popup shown because of a reconnect (the page catching up on `activeUntil`) also plays it, or only a fresh ring does.
+- **Decided by you, Oct 11:**
+  - **Quiet hours:** silent.
+  - **Volume:** as loud as the tablet goes, outside quiet hours.
+  - **Missed rings:** no sound. Only a ring the tablet receives live dings. A popup shown because the page caught up on `activeUntil` after sleeping or reconnecting stays silent.
 - **Other:** the existing physical chime stays as it is.
 - **Unknown:** whether Protect can provide the chime's own ringtone file. Not needed for this approach.
 
